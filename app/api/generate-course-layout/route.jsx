@@ -1,9 +1,6 @@
 import { coursesTable } from "../../../config/schema";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { GoogleGenerativeAI } from "@google/generative-ai"; 
-import {
-  GoogleGenAI,
-} from '@google/genai';
+import { ai } from "../../../@/lib/ai"
 // ✅ fixed import
 import { NextResponse } from "next/server";
 import { db } from "../../../config/db"; // ✅ import db
@@ -38,9 +35,7 @@ Schema:
 , User Input: 
 `;
 
-export const ai = new GoogleGenAI({ // ✅ fixed class name
-      apiKey: process.env.GEMINI_API_KEY,
-    });
+
 export async function POST(request) {
   try {
     const { courseId, ...formData } = await request.json();

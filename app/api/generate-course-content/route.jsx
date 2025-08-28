@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ai } from "../generate-course-layout/route";
+import { ai } from "../../../@/lib/ai";
 import axios from "axios";
 import { db } from "../../../config/db";
 import { coursesTable } from "../../../config/schema";
