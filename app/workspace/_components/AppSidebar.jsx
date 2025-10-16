@@ -62,7 +62,7 @@ function AppSidebar(){
           <SidebarContent>
               <SidebarGroup> 
                 <AddNewCourseDialog>
-                    <Button>Create New Course</Button>
+                    <Button className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700">Create New Course</Button>
                 </AddNewCourseDialog> 
               </SidebarGroup>
               <SidebarGroup>
@@ -70,9 +70,9 @@ function AppSidebar(){
                   <SidebarMenu>
                     {SideBarOptions.map((item,index)=>(
                       <SidebarMenuItem key={index} >
-                        <SidebarMenuButton asChild className={'p-5'}>
+                        <SidebarMenuButton asChild className={'p-5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}>
                           <Link href={item.path} className={`text-[17px]
-                          ${path.includes(item.path)&&'text-primary font-bold bg-purple-50'}`}>
+                          ${path.includes(item.path)&&'text-primary font-bold bg-emerald-50 dark:bg-emerald-900/20'}`}>
                             
                             
                               <item.icon className='h-7 w-7'/>

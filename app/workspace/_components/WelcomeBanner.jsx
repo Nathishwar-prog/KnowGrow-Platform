@@ -5,10 +5,9 @@ import React from "react";
 
 function WelcomeBanner(){
     return (
-        <div className='p-5 bg-gradient-to-br from-blue-600 via-indigo-600 to-pink-500
-        rounded-xl mb-10'>
-            <h2 className='font-bold text-2xl text-white'>Welcome to Online Learning Platform</h2>
-            <p className='text-white'>Learn, Create and Explore Your favorite courses</p>
+        <div className='p-5 bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 dark:from-emerald-600 dark:via-emerald-700 dark:to-emerald-800 rounded-xl mb-10 text-white'>
+            <h2 className='font-bold text-2xl'>Welcome to Online Learning Platform</h2>
+            <p className='opacity-90'>Learn, Create and Explore Your favorite courses</p>
         </div>
     )
 }

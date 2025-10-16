@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import { SelectedChapterIndexContext } from "../../../context/SelectedChapterIndexContext";
 import YouTube from "react-youtube";
 import { Button } from "../../../@/components/ui/button";
@@ -6,6 +6,7 @@ import { CheckCircle, Loader2Icon, X } from "lucide-react";
 import axios from "axios";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import CodeEnhancer from "./CodeEnhancer";
 
 function ChapterContent({ courseInfo, refreshData }) {
     const { courseId } = useParams();
@@ -44,6 +45,8 @@ function ChapterContent({ courseInfo, refreshData }) {
         toast.success('Chapter Marked InCompleted!');
         setLoading(false);
     };
+
+    const containerId = useMemo(()=> `chapter-content-${selectedChapterIndex}`, [selectedChapterIndex]);
 
     return (
         <div className='p-10 min-h-full'>
@@ -86,10 +89,30 @@ function ChapterContent({ courseInfo, refreshData }) {
                         <h2 className='font-bold text-2xl text-primary'>
                             {index + 1}. {topic?.topic}
                         </h2>
-                        <div
+                        <div id={containerId}
+                            className='prose prose-emerald dark:prose-invert max-w-none'
                             dangerouslySetInnerHTML={{ __html: topic?.content }}
-                            style={{ lineHeight: '2.5' }}
+                            style={{ lineHeight: '2.1' }}
                         />
+                        <CodeEnhancer containerId={containerId} />
+                        {/* Code block enhancer */}
+                        <div className='mt-4 rounded-lg border bg-card kg-code-wrap'>
+                            <div className='copy-area'>
+                                <button className='kg-copy-btn' onClick={() => navigator.clipboard.writeText(`# Adjust paths based on your OS`) }>Copy</button>
+                            </div>
+                            <div className='px-3 py-2 text-xs text-muted-foreground border-b flex items-center gap-2'>
+                                <span className='h-2 w-2 rounded-full bg-emerald-500'></span>
+                                <span>Code & Commands</span>
+                            </div>
+                            <div className='p-0 text-sm overflow-x-auto'>
+                                <pre className='kg-code p-4'><code>
+<span className='token.comment line'># Setup</span>
+<span className='token.keyword'>npm</span> <span className='token.function'>install</span>
+<span className='token.comment line'># Run</span>
+<span className='token.keyword'>npm</span> <span className='token.function'>run</span> <span className='token.property'>dev</span>
+                                </code></pre>
+                            </div>
+                        </div>
                     </div>
                 ))}
             </div>

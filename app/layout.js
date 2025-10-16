@@ -10,6 +10,7 @@ import Provider  from './provider'
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'sonner';
+import GlobalThemeToggle from './_components/GlobalThemeToggle';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,14 +30,15 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning className="min-h-full">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
         >
         <Provider>
           {children}  
         </Provider>
         <Toaster/>
+          <GlobalThemeToggle/>
         </body>
       </html>
     </ClerkProvider>

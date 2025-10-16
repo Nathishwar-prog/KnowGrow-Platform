@@ -5,6 +5,7 @@ import { User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { UserDetailContext } from "../context/UserDetailContext";
 import {SelectedChapterIndexContext} from "../context/SelectedChapterIndexContext";
+import { ThemeProvider } from "next-themes";
 function Provider({ children }) {
     const {user} = useUser();
     const [userDetail,setUserDetail]=useState();
@@ -22,11 +23,13 @@ function Provider({ children }) {
         setUserDetail(result.data);
     };
     return (
-        <UserDetailContext.Provider value={{ userDetail,setUserDetail }}>
-            <SelectedChapterIndexContext.Provider value={{ selectedChapterIndex,setSelectedChapterIndex }}>
-                <div>{children}</div>
-            </SelectedChapterIndexContext.Provider>
-        </UserDetailContext.Provider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <UserDetailContext.Provider value={{ userDetail,setUserDetail }}>
+                <SelectedChapterIndexContext.Provider value={{ selectedChapterIndex,setSelectedChapterIndex }}>
+                    <div>{children}</div>
+                </SelectedChapterIndexContext.Provider>
+            </UserDetailContext.Provider>
+        </ThemeProvider>
         )
 }
 

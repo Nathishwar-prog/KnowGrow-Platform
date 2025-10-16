@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import axios from "axios";
 import CourseInfo from "../_components/CourseInfo";
 import ChapterTopicList from "../_components/ChapterTopicList";
+import CourseMapPanel from "../_components/CourseMapPanel";
 // )
 function EditCourse({ viewCourse = false }) {
   const { courseId } = useParams();
@@ -38,6 +39,9 @@ function EditCourse({ viewCourse = false }) {
   return (
     <div>
       <CourseInfo course={course} viewCourse={viewCourse} />
+      <div className='mt-6'>
+        <CourseMapPanel course={course} />
+      </div>
       <ChapterTopicList course={course} />
     </div>
   );
