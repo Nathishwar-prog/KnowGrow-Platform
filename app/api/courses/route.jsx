@@ -10,15 +10,29 @@ const serialize = (obj) =>
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const courseId = searchParams?.get("courseId");
+  const searchQuery = searchParams?.get("search");
   const user = await currentUser();
 
   // Case 1: special "0" -> return courses with non-empty content
   if (courseId === "0") {
-    const result = await db
+    let query = db
       .select()
       .from(coursesTable)
       .where(sql`${coursesTable.courseContent}::jsonb != '{}'::jsonb`);
 
+    // Add search functionality if search query is provided
+    if (searchQuery && searchQuery.trim() !== "") {
+      const searchPattern = `%${searchQuery.toLowerCase()}%`;
+      query = query.where(
+        sql`(
+          LOWER(${coursesTable.name}) LIKE ${searchPattern} OR
+          LOWER(${coursesTable.description}) LIKE ${searchPattern} OR
+          LOWER(${coursesTable.courseJson}::text) LIKE ${searchPattern}
+        )`
+      );
+    }
+
+    const result = await query;
     return NextResponse.json(serialize(result));
   }
 

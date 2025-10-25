@@ -328,9 +328,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3">
             <a href="#" className="flex items-center space-x-2">
-              <div className="w-9 h-9 bg-gradient-to-r from-green-600 to-green-500 rounded-lg flex items-center justify-center">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
+             
               <span className="text-2xl font-bold text-gray-900">KnowGrow</span>
             </a>
             <div className="hidden md:flex space-x-8 items-center">

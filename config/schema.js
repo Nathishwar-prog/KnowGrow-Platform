@@ -1,4 +1,4 @@
-import { boolean, integer, json, pgTable, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, json, pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -29,4 +29,27 @@ export const enrollCourseTable = pgTable('enrollCourse',{
   cid:varchar('cid').references(()=>coursesTable.cid),
   userEmail:varchar().references(()=>usersTable.email).notNull(),
   completedChapters: json()
+})
+
+export const quizzesTable = pgTable('quizzes', {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  quizId: varchar().notNull().unique(),
+  title: varchar({ length: 500 }).notNull(),
+  description: varchar({ length: 1000 }),
+  topic: varchar({ length: 255 }).notNull(),
+  difficulty: varchar({ length: 50 }).notNull(),
+  questionCount: integer().notNull(),
+  quizData: json().notNull(),
+  userEmail: varchar().references(() => usersTable.email).notNull(),
+  createdAt: varchar().notNull()
+})
+
+export const adminTable = pgTable('admins', {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  email: varchar({ length: 255 }).notNull().unique(),
+  password: varchar({ length: 255 }).notNull(),
+  name: varchar({ length: 255 }).notNull(),
+  role: varchar({ length: 50 }).notNull().default('admin'),
+  createdAt: varchar().notNull(),
+  lastLogin: varchar()
 })
