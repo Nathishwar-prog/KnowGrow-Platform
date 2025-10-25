@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ai } from "../../../@/lib/ai";
 
 const PROJECT_GUIDANCE_PROMPT = `You are an expert project mentor and technical advisor specializing in guiding students through complex projects. Your goal is to provide comprehensive, step-by-step guidance that helps students successfully complete their projects.
 
@@ -28,63 +27,82 @@ Remember: Be encouraging, provide practical advice, and help students build conf
 
 export async function POST(req) {
   try {
-    const { projectDescription, skillLevel = "intermediate", technologies = [], timeline = "flexible", conversationHistory = [] } = await req.json();
+    const {
+      projectDescription,
+      skillLevel = "intermediate",
+      technologies = [],
+      timeline = "flexible",
+      conversationHistory = [],
+    } = await req.json();
 
-    const config = {
-      responseMimeType: 'text/plain',
-    };
-    const model = "gemini-2.5-flash";
-    
-    // Build conversation context
-    const contents = [
+    // --- 🔐 Use your OpenRouter API Key (set this in your .env file) ---
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "<OPENROUTER_API_KEY>";
+    const YOUR_SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "<YOUR_SITE_URL>";
+    const YOUR_SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME || "<YOUR_SITE_NAME>";
+
+    // --- 🧠 Choose your OpenRouter model ---
+    // You can change this to any available model, e.g. "gpt-4o-mini", "qwen/qwen3-vl-8b-instruct", etc.
+    const model = "gpt-4o-mini";
+
+    // --- 🗣️ Build messages for OpenRouter ---
+    const messages = [
+      { role: "system", content: PROJECT_GUIDANCE_PROMPT },
+      ...conversationHistory.map((msg) => ({
+        role: msg.role === "user" ? "user" : "assistant",
+        content: msg.content,
+      })),
       {
         role: "user",
-        parts: [
-          {
-            text: `${PROJECT_GUIDANCE_PROMPT}
-
+        content: `
 Project Description: ${projectDescription}
 Skill Level: ${skillLevel}
 Preferred Technologies: ${technologies.join(", ") || "Not specified"}
 Timeline: ${timeline}
 
 Please provide comprehensive project guidance following the format above.`,
-          },
-        ],
       },
     ];
 
-    // Add conversation history for context
-    if (conversationHistory.length > 0) {
-      conversationHistory.forEach(msg => {
-        contents.push({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content }]
-        });
-      });
-    }
-
-    const response = await ai.models.generateContent({
-      model,
-      config,
-      contents,
+    // --- 🌐 Call OpenRouter API ---
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": YOUR_SITE_URL,
+        "X-Title": YOUR_SITE_NAME,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.7,
+      }),
     });
 
-    const aiResponse = response?.candidates?.[0]?.content?.parts?.[0]?.text || "I'm sorry, I couldn't generate project guidance. Please try again.";
+    const result = await response.json();
 
+    if (!response.ok) {
+      throw new Error(`OpenRouter API Error: ${result.error?.message || "Unknown error"}`);
+    }
+
+    // --- 🧾 Extract model output ---
+    const aiResponse =
+      result?.choices?.[0]?.message?.content ||
+      "I'm sorry, I couldn't generate project guidance. Please try again.";
+
+    // --- ✅ Return JSON response ---
     return NextResponse.json({
       success: true,
       response: aiResponse,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Project Guidance AI Error:", error);
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to generate project guidance. Please try again.",
-        details: error.message
+        error: "Failed to generate project guidance.",
+        details: error.message,
       },
       { status: 500 }
     );

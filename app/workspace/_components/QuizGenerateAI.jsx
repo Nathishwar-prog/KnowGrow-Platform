@@ -237,7 +237,7 @@ const QuizGenerateAI = ({ isOpen, onClose }) => {
                 <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Quiz Generate AI
                 </h2>
-                <p className="text-sm text-muted-foreground">Powered by Advanced AI</p>
+                <p className="text-sm text-muted-foreground">Powered by Ruixen AI Modal</p>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-destructive/10">
@@ -251,9 +251,7 @@ const QuizGenerateAI = ({ isOpen, onClose }) => {
             /* Enhanced Quiz Generation Form */
             <div className="max-w-2xl mx-auto space-y-6">
               <div className="text-center space-y-4">
-                <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-2xl mb-4">
-                  <Sparkles className="h-12 w-12 text-blue-500" />
-                </div>
+                
                 <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                   Generate Your Quiz
                 </h3>

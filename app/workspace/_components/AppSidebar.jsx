@@ -13,7 +13,7 @@ import {
 } from "../../../@/components/ui/sidebar"
 import Image from 'next/image';
 import {Button}  from "../../../@/components/ui/button";
-import { LayoutDashboard,Book, WalletCards, PencilRulerIcon, Compass, UserCircle2Icon, FileQuestion} from "lucide-react";
+import { LayoutDashboard,Book, WalletCards, PencilRulerIcon, Compass, UserCircle2Icon, FileQuestion, BookOpen} from "lucide-react";
 import Link from "next/link"
 import { usePathname } from "next/navigation";
 import AddNewCourseDialog from "./AddNewCourseDialog";
@@ -44,6 +44,11 @@ const SideBarOptions=[
     title:'Ai Tools',
     icon:PencilRulerIcon,
     path:'/workspace/ai-tools'
+  },
+    {
+    title:'Cheatsheets',
+    icon:BookOpen,
+    path:'/workspace/cheatsheet-folder'
   },
     {
     title:'Billing',

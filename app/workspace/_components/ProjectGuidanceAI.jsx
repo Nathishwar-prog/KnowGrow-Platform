@@ -142,13 +142,32 @@ Please provide comprehensive project guidance including planning, implementation
         const code = language ? lines.slice(1).join('\n') : codeBlock;
         
         return (
-          <CustomSyntaxHighlighter
-            key={index}
-            language={language || 'text'}
-            theme={theme}
-          >
-            {code}
-          </CustomSyntaxHighlighter>
+          <div key={index} className="my-4 rounded-lg overflow-hidden border border-border/50 shadow-sm">
+            <div className="bg-muted/50 px-4 py-2 flex items-center justify-between border-b">
+              <div className="flex items-center gap-2">
+                <Code className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground uppercase">{language || 'code'}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => copyToClipboard(code, `code-${index}`)}
+                className="h-7 px-2"
+              >
+                {copiedMessageId === `code-${index}` ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
+            <CustomSyntaxHighlighter
+              language={language || 'text'}
+              theme={theme}
+            >
+              {code}
+            </CustomSyntaxHighlighter>
+          </div>
         );
       }
       
@@ -157,13 +176,25 @@ Please provide comprehensive project guidance including planning, implementation
         const mermaidMatch = part.match(/```mermaid\n([\s\S]*?)\n```/);
         if (mermaidMatch) {
           return (
-            <div key={index} className="my-4 p-4 bg-muted rounded-lg">
-              <div className="text-sm text-muted-foreground mb-2">Project Flowchart:</div>
-              <div className="text-xs font-mono whitespace-pre-wrap bg-background p-3 rounded border">
-                {mermaidMatch[1]}
+            <div key={index} className="my-4 rounded-lg border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 overflow-hidden shadow-md">
+              <div className="bg-primary/10 px-4 py-3 border-b border-primary/20">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold text-primary">Project Flowchart</span>
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                Copy this Mermaid code to <a href="https://mermaid.live" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">mermaid.live</a> to visualize
+              <div className="p-4">
+                <div className="text-xs font-mono whitespace-pre-wrap bg-background/80 p-4 rounded-md border border-border/50 backdrop-blur-sm">
+                  {mermaidMatch[1]}
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                  <BookOpen className="h-3 w-3" />
+                  <span>Visualize this diagram at{' '}
+                    <a href="https://mermaid.live" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                      mermaid.live
+                    </a>
+                  </span>
+                </div>
               </div>
             </div>
           );
@@ -172,35 +203,124 @@ Please provide comprehensive project guidance including planning, implementation
       
       // Regular text with enhanced formatting
       return (
-        <div key={index} className="whitespace-pre-wrap">
+        <div key={index} className="space-y-2">
           {part.split('\n').map((line, lineIndex) => {
-            if (line.startsWith('**') && line.endsWith('**')) {
-              return <strong key={lineIndex}>{line.slice(2, -2)}</strong>;
-            }
-            if (line.startsWith('*') && line.endsWith('*')) {
-              return <em key={lineIndex}>{line.slice(1, -1)}</em>;
-            }
-            if (line.startsWith('### ')) {
-              return <h3 key={lineIndex} className="text-lg font-semibold mt-4 mb-2">{line.slice(4)}</h3>;
-            }
-            if (line.startsWith('## ')) {
-              return <h2 key={lineIndex} className="text-xl font-semibold mt-4 mb-2">{line.slice(3)}</h2>;
-            }
-            if (line.startsWith('# ')) {
-              return <h1 key={lineIndex} className="text-2xl font-bold mt-4 mb-2">{line.slice(2)}</h1>;
-            }
-            if (line.startsWith('- ')) {
-              return <li key={lineIndex} className="ml-4">{line.slice(2)}</li>;
-            }
-            if (line.startsWith('✓ ') || line.startsWith('✅ ')) {
+            // Numbered lists (1., 2., etc.)
+            const numberedMatch = line.match(/^(\d+)\.\s+(.+)/);
+            if (numberedMatch) {
               return (
-                <div key={lineIndex} className="flex items-center gap-2 ml-4">
-                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  <span>{line.slice(2)}</span>
+                <div key={lineIndex} className="flex gap-3 items-start py-1">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs font-bold text-primary">{numberedMatch[1]}</span>
+                  </div>
+                  <span className="flex-1 pt-0.5">{numberedMatch[2]}</span>
                 </div>
               );
             }
-            return <div key={lineIndex}>{line}</div>;
+            
+            // Headers
+            if (line.startsWith('### ')) {
+              return (
+                <h3 key={lineIndex} className="text-lg font-bold mt-6 mb-3 text-foreground border-b border-border/30 pb-2">
+                  {line.slice(4)}
+                </h3>
+              );
+            }
+            if (line.startsWith('## ')) {
+              return (
+                <div key={lineIndex} className="mt-6 mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-1 w-1 rounded-full bg-primary" />
+                    <h2 className="text-xl font-bold text-foreground">{line.slice(3)}</h2>
+                  </div>
+                  <div className="h-0.5 w-12 bg-gradient-to-r from-primary to-transparent rounded-full" />
+                </div>
+              );
+            }
+            if (line.startsWith('# ')) {
+              return (
+                <div key={lineIndex} className="mt-6 mb-4 p-4 rounded-lg bg-gradient-to-r from-primary/10 to-transparent border-l-4 border-primary">
+                  <h1 className="text-2xl font-bold text-foreground">{line.slice(2)}</h1>
+                </div>
+              );
+            }
+            
+            // Bold text with **text**
+            if (line.includes('**')) {
+              const boldFormatted = line.split(/(\*\*.*?\*\*)/).map((segment, i) => {
+                if (segment.startsWith('**') && segment.endsWith('**')) {
+                  return <strong key={i} className="font-semibold text-foreground">{segment.slice(2, -2)}</strong>;
+                }
+                return segment;
+              });
+              return <div key={lineIndex} className="leading-relaxed">{boldFormatted}</div>;
+            }
+            
+            // Bullet points with emojis or special markers
+            if (line.startsWith('✓ ') || line.startsWith('✅ ')) {
+              return (
+                <div key={lineIndex} className="flex items-start gap-3 py-1.5 pl-2">
+                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500/10 flex items-center justify-center mt-0.5">
+                    <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <span className="flex-1 text-sm leading-relaxed">{line.slice(2)}</span>
+                </div>
+              );
+            }
+            
+            if (line.startsWith('🎯 ') || line.startsWith('- 🎯 ')) {
+              return (
+                <div key={lineIndex} className="flex items-start gap-3 py-1.5 pl-2 bg-primary/5 rounded-md px-3">
+                  <Target className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
+                  <span className="flex-1 text-sm font-medium">{line.replace(/^-?\s*🎯\s*/, '')}</span>
+                </div>
+              );
+            }
+            
+            if (line.startsWith('⏰ ') || line.startsWith('- ⏰ ')) {
+              return (
+                <div key={lineIndex} className="flex items-start gap-3 py-1.5 pl-2">
+                  <Clock className="h-4 w-4 text-orange-500 flex-shrink-0 mt-1" />
+                  <span className="flex-1 text-sm">{line.replace(/^-?\s*⏰\s*/, '')}</span>
+                </div>
+              );
+            }
+            
+            // Regular bullet points
+            if (line.startsWith('- ')) {
+              return (
+                <div key={lineIndex} className="flex items-start gap-3 py-1 pl-2">
+                  <div className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-2" />
+                  <span className="flex-1 text-sm leading-relaxed">{line.slice(2)}</span>
+                </div>
+              );
+            }
+            
+            // Callout boxes (lines starting with > )
+            if (line.startsWith('> ')) {
+              return (
+                <div key={lineIndex} className="my-3 p-4 rounded-lg bg-muted/50 border-l-4 border-primary italic">
+                  <span className="text-sm">{line.slice(2)}</span>
+                </div>
+              );
+            }
+            
+            // Phase/Stage indicators (e.g., "Phase 1:", "Stage 2:")
+            if (line.match(/^(Phase|Stage|Step)\s+\d+:/i)) {
+              return (
+                <div key={lineIndex} className="my-3 p-3 rounded-lg bg-gradient-to-r from-primary/10 to-transparent border-l-4 border-primary">
+                  <span className="font-semibold text-primary">{line}</span>
+                </div>
+              );
+            }
+            
+            // Empty lines
+            if (line.trim() === '') {
+              return <div key={lineIndex} className="h-2" />;
+            }
+            
+            // Regular text
+            return <div key={lineIndex} className="text-sm leading-relaxed text-foreground/90">{line}</div>;
           })}
         </div>
       );
@@ -323,44 +443,48 @@ Please provide comprehensive project guidance including planning, implementation
                   className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   {message.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-4 w-4 text-primary" />
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 shadow-lg flex items-center justify-center flex-shrink-0 ring-2 ring-primary/20">
+                      <Bot className="h-5 w-5 text-primary-foreground" />
                     </div>
                   )}
                   
                   <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
+                    className={`max-w-[85%] rounded-xl p-4 shadow-sm ${
                       message.role === 'user'
-                        ? 'bg-primary text-primary-foreground ml-auto'
-                        : 'bg-muted'
+                        ? 'bg-gradient-to-br from-primary to-primary/90 text-primary-foreground ml-auto'
+                        : 'bg-gradient-to-br from-muted to-muted/50 border border-border/50'
                     }`}
                   >
-                    <div className="prose prose-sm max-w-none">
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
                       {formatMessage(message.content)}
                     </div>
                     
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </span>
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/30">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => copyToClipboard(message.content, message.id)}
-                        className="h-6 w-6 p-0"
+                        className="h-7 w-7 p-0 hover:bg-background/20"
+                        title="Copy message"
                       >
                         {copiedMessageId === message.id ? (
-                          <Check className="h-3 w-3" />
+                          <Check className="h-3.5 w-3.5 text-green-500" />
                         ) : (
-                          <Copy className="h-3 w-3" />
+                          <Copy className="h-3.5 w-3.5" />
                         )}
                       </Button>
                     </div>
                   </div>
 
                   {message.role === 'user' && (
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                      <User className="h-4 w-4 text-primary-foreground" />
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/80 shadow-lg flex items-center justify-center flex-shrink-0 ring-2 ring-primary/30">
+                      <User className="h-5 w-5 text-primary-foreground" />
                     </div>
                   )}
                 </div>
@@ -368,13 +492,23 @@ Please provide comprehensive project guidance including planning, implementation
               
               {isLoading && (
                 <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-4 w-4 text-primary" />
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 shadow-lg flex items-center justify-center flex-shrink-0 ring-2 ring-primary/20">
+                    <Bot className="h-5 w-5 text-primary-foreground" />
                   </div>
-                  <div className="bg-muted rounded-lg p-3">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm text-muted-foreground">Analyzing your project...</span>
+                  <div className="bg-gradient-to-br from-muted to-muted/50 border border-border/50 rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <div className="absolute inset-0 h-5 w-5 animate-ping opacity-20 bg-primary rounded-full" />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-sm font-medium text-foreground">Analyzing your project...</span>
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
