@@ -15,13 +15,23 @@ function Provider({ children }) {
     },[user])
 
     const CreateNewUsers=async() =>{
-        const result = await axios.post('/api/user',{
-            name:user?.fullName,
-            email:user?.primaryEmailAddress?.emailAddress
-        });
-        console.log(result.data);
-        setUserDetail(result.data);
+        try {
+            const result = await axios.post('/api/user',{
+                name:user?.fullName,
+                email:user?.primaryEmailAddress?.emailAddress
+            });
+            console.log(result.data);
+            setUserDetail(result.data);
+        } catch (error) {
+            console.error("Error creating user:", error);
+            // Even if user creation fails, we should still set some user detail
+            setUserDetail({
+                email: user?.primaryEmailAddress?.emailAddress,
+                name: user?.fullName
+            });
+        }
     };
+
     return (
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <UserDetailContext.Provider value={{ userDetail,setUserDetail }}>

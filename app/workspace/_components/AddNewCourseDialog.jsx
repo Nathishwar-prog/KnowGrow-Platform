@@ -45,6 +45,8 @@ function AddNewCourseDialog({ children }) {
     console.log(formData);
   };
 
+  const [open, setOpen] = useState(false);
+
   const requestOnce = async () => {
     console.log("Form data before request:", formData);
     const courseId = uuidv4();
@@ -70,6 +72,7 @@ function AddNewCourseDialog({ children }) {
       const newId = result.data.courseId;
       console.log("✅ Redirecting to course:", newId);
 
+      setOpen(false); // Close the dialog
       router.push("/workspace/edit-course/" + newId);
     } catch (err) {
       console.error("❌ Error during course generation:", err);
@@ -106,7 +109,7 @@ function AddNewCourseDialog({ children }) {
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
@@ -201,7 +204,7 @@ function AddNewCourseDialog({ children }) {
                     <div className="h-5 w-5 rounded-full border-2 border-emerald-200 border-t-emerald-600 animate-spin"></div>
                     <div className="absolute inset-0 h-3 w-3 rounded-full bg-emerald-400 animate-ping m-auto"></div>
                   </div>
-                  {queued ? `Queued, retrying (attempt ${attempt+1}/3)…` : 'Generating with KG-AI…'}
+                  {queued ? `Queued, retrying (attempt ${attempt + 1}/3)…` : 'Generating with KG-AI…'}
                 </div>
               ) : (
                 <>

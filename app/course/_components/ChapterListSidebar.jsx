@@ -28,39 +28,38 @@ function ChapterListSidebar({ courseInfo }) {
           <span className="inline-block h-2 w-2 rounded-full bg-lime-300"></span>
           <span className="text-xs text-emerald-700 dark:text-emerald-300">Interactive Syllabus</span>
         </div>
-      <Accordion type="single" collapsible>
-        {(courseContent ?? []).map((chapter, index) => (
-          <AccordionItem
-            value={chapter?.courseData?.chapterName}
-            key={index}
-            onClick={() => setSelectedChapterIndex(index)}
-          >
-            <AccordionTrigger
-              className={`text-sm font-medium rounded-md px-3 py-2 border transition-colors ${
-                selectedChapterIndex === index
-                  ? "bg-white text-emerald-800 border-emerald-300"
-                  : "bg-card hover:bg-emerald-50 border-transparent"
-              } ${completedChapter.includes(index) ? 'ring-1 ring-emerald-300':''}`}
+        <Accordion type="single" collapsible>
+          {(courseContent ?? []).map((chapter, index) => (
+            <AccordionItem
+              value={chapter?.courseData?.chapterName}
+              key={index}
               onClick={() => setSelectedChapterIndex(index)}
             >
-              
-              {index + 1}.{chapter?.courseData?.chapterName}
-            </AccordionTrigger>
+              <AccordionTrigger
+                className={`text-sm font-medium rounded-md px-3 py-2 border transition-colors ${selectedChapterIndex === index
+                    ? "bg-white text-emerald-800 border-emerald-300"
+                    : "bg-card hover:bg-emerald-50 border-transparent"
+                  } ${completedChapter.includes(index) ? 'ring-1 ring-emerald-300' : ''}`}
+                onClick={() => setSelectedChapterIndex(index)}
+              >
 
-            <AccordionContent asChild>
-              <div className="">
-                {chapter?.courseData?.topics?.map((topic, index_) => (
-                  <h2 key={index_} 
-                  className={`p-2  my-1 rounded-lg transition-colors border
-                     ${completedChapter.includes(index) ? 'bg-emerald-50 text-emerald-800 border-emerald-200':'bg-white dark:bg-[color:oklch(0.21_0.03_150)] border-transparent text-foreground'}`}>
-                    {topic?.topic}
-                  </h2>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+                {index + 1}. {chapter?.courseData?.chapterName || course?.courseJson?.chapters?.[index]?.name || "Untitled Chapter"}
+              </AccordionTrigger>
+
+              <AccordionContent asChild>
+                <div className="">
+                  {chapter?.courseData?.topics?.map((topic, index_) => (
+                    <h2 key={index_}
+                      className={`p-2  my-1 rounded-lg transition-colors border
+                     ${completedChapter.includes(index) ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-white dark:bg-[color:oklch(0.21_0.03_150)] border-transparent text-foreground'}`}>
+                      {topic?.topic}
+                    </h2>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
       </div>
     </div>
   );

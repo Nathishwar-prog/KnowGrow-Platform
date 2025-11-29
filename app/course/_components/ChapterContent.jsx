@@ -2,7 +2,7 @@ import React, { useContext, useMemo, useState } from "react";
 import { SelectedChapterIndexContext } from "../../../context/SelectedChapterIndexContext";
 import YouTube from "react-youtube";
 import { Button } from "../../../@/components/ui/button";
-import { CheckCircle, Loader2Icon, X } from "lucide-react";
+import { CheckCircle, Loader2Icon, X, ArrowRight } from "lucide-react";
 import axios from "axios";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -46,7 +46,11 @@ function ChapterContent({ courseInfo, refreshData }) {
         setLoading(false);
     };
 
-    const containerId = useMemo(()=> `chapter-content-${selectedChapterIndex}`, [selectedChapterIndex]);
+    const readingTime = useMemo(() => {
+        if (!topics) return 0;
+        const totalWords = topics.reduce((acc, topic) => acc + (topic?.content?.split(' ').length || 0), 0);
+        return Math.ceil(totalWords / 200); // 200 words per minute
+    }, [topics]);
 
     return (
         <div className='p-10 min-h-full'>
@@ -66,17 +70,25 @@ function ChapterContent({ courseInfo, refreshData }) {
                 )}
             </div>
 
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 mb-6">
+                <span>⏱️ ~{readingTime} min read</span>
+            </div>
+
             <h2 className='my-2 font-bold text-lg'>Related Videos 📽️</h2>
             <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
                 {videoData.map((video, index) =>
                     index < 2 && (
-                        <div key={index}>
+                        <div key={index} className="video-responsive">
                             <YouTube
                                 videoId={video?.videoId}
                                 opts={{
-                                    height: '250',
-                                    width: '400'
+                                    height: '100%',
+                                    width: '100%',
+                                    playerVars: {
+                                        autoplay: 0,
+                                    },
                                 }}
+                                className="absolute top-0 left-0 w-full h-full"
                             />
                         </div>
                     )
@@ -89,32 +101,28 @@ function ChapterContent({ courseInfo, refreshData }) {
                         <h2 className='font-bold text-2xl text-primary'>
                             {index + 1}. {topic?.topic}
                         </h2>
-                        <div id={containerId}
+                        <div id={`chapter-content-${selectedChapterIndex}-${index}`}
                             className='prose prose-emerald dark:prose-invert max-w-none'
                             dangerouslySetInnerHTML={{ __html: topic?.content }}
                             style={{ lineHeight: '2.1' }}
                         />
-                        <CodeEnhancer containerId={containerId} />
-                        {/* Code block enhancer */}
-                        <div className='mt-4 rounded-lg border bg-card kg-code-wrap'>
-                            <div className='copy-area'>
-                                <button className='kg-copy-btn' onClick={() => navigator.clipboard.writeText(`# Adjust paths based on your OS`) }>Copy</button>
-                            </div>
-                            <div className='px-3 py-2 text-xs text-muted-foreground border-b flex items-center gap-2'>
-                                <span className='h-2 w-2 rounded-full bg-emerald-500'></span>
-                                <span>Code & Commands</span>
-                            </div>
-                            <div className='p-0 text-sm overflow-x-auto'>
-                                <pre className='kg-code p-4'><code>
-<span className='token.comment line'># Setup</span>
-<span className='token.keyword'>npm</span> <span className='token.function'>install</span>
-<span className='token.comment line'># Run</span>
-<span className='token.keyword'>npm</span> <span className='token.function'>run</span> <span className='token.property'>dev</span>
-                                </code></pre>
-                            </div>
-                        </div>
+                        <CodeEnhancer containerId={`chapter-content-${selectedChapterIndex}-${index}`} />
                     </div>
                 ))}
+            </div>
+
+            <div className="flex justify-end mt-10">
+                {selectedChapterIndex < courseContent?.length - 1 && (
+                    <Button
+                        onClick={() => {
+                            setSelectedChapterIndex(selectedChapterIndex + 1);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="gap-2"
+                    >
+                        Next Chapter <ArrowRight className="h-4 w-4" />
+                    </Button>
+                )}
             </div>
         </div>
     );

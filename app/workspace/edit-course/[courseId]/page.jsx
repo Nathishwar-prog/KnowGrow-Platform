@@ -25,7 +25,7 @@ function EditCourse({ viewCourse = false }) {
       const result = await axios.get(`/api/courses?courseId=${courseId}`);
       console.log(result.data);
       console.log("Incoming courseId:", courseId, typeof courseId);
-      
+
       console.log("Query result:", result);
 
       setCourse(result.data);
@@ -39,9 +39,9 @@ function EditCourse({ viewCourse = false }) {
   return (
     <div>
       <CourseInfo course={course} viewCourse={viewCourse} />
-      <div className='mt-6'>
+      {/* <div className='mt-6'>
         <CourseMapPanel course={course} />
-      </div>
+      </div> */}
       <ChapterTopicList course={course} />
     </div>
   );

@@ -12,7 +12,8 @@ STRICT RULES:
 - Output MUST be valid JSON. Do not include markdown fences.
 - Keep content concise and bite-sized.
 - Include installation/setup/notes definitions for clarity.
-- Topics should be logical, progressive, and beginner-friendly unless specified otherwise.
+- Topics MUST be specific technical concepts (e.g., "Variables & Data Types", "Async/Await", "Flexbox Layout"), NOT generic motivational titles like "Why learn this?".
+- Include specific syntax examples or code concepts in the topics list where applicable.
 - Include YouTube search keywords (not URLs) for 2–3 suggested videos per chapter if includeVideo=true.
 
 JSON Schema:
@@ -52,10 +53,10 @@ export async function POST(request) {
   try {
     const { courseId, ...formData } = await request.json();
     const user = await currentUser();
-    const {has} = await auth();
-    const hasPremiumAccess = has({plan:'starter' })
+    const { has } = await auth();
+    const hasPremiumAccess = has({ plan: 'starter' })
 
-    
+
 
     const tools = [{ googleSearch: {} }];
     const config = {
@@ -72,11 +73,11 @@ export async function POST(request) {
 
     // If user alredy created any courses
 
-    if(!hasPremiumAccess){
+    if (!hasPremiumAccess) {
       const result = await db.select().from(coursesTable)
-        .where(eq(coursesTable.userEmail,user?.primaryEmailAddress.emailAddress));
+        .where(eq(coursesTable.userEmail, user?.primaryEmailAddress.emailAddress));
 
-        
+
     }
 
     async function withRetry(fn, retries = 3, delay = 1000) {
@@ -93,7 +94,7 @@ export async function POST(request) {
     const response = await withRetry(() =>
       ai.models.generateContent({ model, config, contents })
     );
-    console.log( response.candidates[0].content.parts[0].text);
+    console.log(response.candidates[0].content.parts[0].text);
     const RawResp = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const RawJson = RawResp.replace(/```json|```/g, "").trim();
 
@@ -123,6 +124,12 @@ export async function POST(request) {
 
 const GenerateImage = async (ImagePrompt) => {
   try {
+    // Check if API key exists
+    if (!process?.env?.AI_GURU_LAB_API_KEY) {
+      console.warn("Missing AI_GURU_LAB_API_KEY, using placeholder image.");
+      return `https://placehold.co/1024x576/png?text=${encodeURIComponent("Course Banner")}`;
+    }
+
     const BASE_URL = 'https://aigurulab.tech';
     const result = await axios.post(
       BASE_URL + '/api/generate-image',
@@ -145,6 +152,7 @@ const GenerateImage = async (ImagePrompt) => {
     return result.data.image;
   } catch (e) {
     console.error('Image generation failed:', e?.response?.data || e?.message || e)
-    return "";
+    // Return placeholder on failure instead of empty string
+    return `https://placehold.co/1024x576/png?text=${encodeURIComponent("Course Banner")}`;
   }
 }

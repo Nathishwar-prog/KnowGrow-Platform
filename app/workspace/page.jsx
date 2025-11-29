@@ -4,26 +4,143 @@ import React, { useState, useEffect } from "react";
 import WelcomeBanner from "./_components/WelcomeBanner";
 import CourseCard from "./_components/CourseCard";
 import EnrollCourseCard from "./_components/EnrollCourseCard";
+import RecommendedCourses from "./_components/RecommendedCourses";
+import ProgressDashboard from "./_components/ProgressDashboard";
+import StudyTimer from "./_components/StudyTimer";
+import StudyGroups from "./_components/StudyGroups";
+import NotificationBell from "./_components/NotificationBell";
 import { Skeleton } from "../../@/components/ui/skeleton";
 import { Card, CardContent } from "../../@/components/ui/card";
 import { Button } from "../../@/components/ui/button";
-import { Loader2, AlertCircle, RefreshCw, BookOpen, Plus } from "lucide-react";
+import { Loader2, AlertCircle, RefreshCw, BookOpen, Plus, Trophy, Star, Award, Target } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import axios from "axios";
 import AddNewCourseDialog from "./_components/AddNewCourseDialog";
 
+// Add LearningStreak component
+function LearningStreak({ streak = 0, longestStreak = 0 }) {
+  // For demonstration, we'll use a fixed streak
+  // In a real implementation, this would come from user data
+  const currentStreak = streak || 5;
+  const maxStreak = longestStreak || 12;
+  
+  return (
+    <Card className="mb-8 border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Learning Streak</h2>
+            <p className="text-gray-600 mt-1">Keep up the great work!</p>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-gray-700">Active today</span>
+          </div>
+        </div>
+        
+        <div className="mt-6 flex items-end space-x-4">
+          <div className="text-center">
+            <div className="text-4xl font-bold text-blue-600">{currentStreak}</div>
+            <div className="text-sm text-gray-600">Current Streak</div>
+          </div>
+          
+          <div className="flex-1">
+            <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+              <span>0</span>
+              <span>Longest: {maxStreak} days</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4">
+              <div 
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full" 
+                style={{ width: `${Math.min(100, (currentStreak / maxStreak) * 100)}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-6 grid grid-cols-7 gap-2">
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+            <div key={index} className="text-center">
+              <div className="text-xs text-gray-500 mb-1">{day}</div>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
+                index < 5 
+                  ? 'bg-blue-500 text-white' 
+                  : index === 5 
+                    ? 'bg-blue-300 text-white' 
+                    : 'bg-gray-200 text-gray-500'
+              }`}>
+                {index + 1}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AchievementsSection({ achievements }) {
+  if (!achievements || achievements.length === 0) return null;
+
+  // Define achievement types and their icons
+  const achievementIcons = {
+    "first_course": <BookOpen className="w-6 h-6" />,
+    "quiz_master": <Target className="w-6 h-6" />,
+    "streak_7": <Star className="w-6 h-6" />,
+    "streak_30": <Trophy className="w-6 h-6" />,
+    "course_completed": <Award className="w-6 h-6" />
+  };
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className='font-bold text-xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent'>
+          Your Achievements
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {achievements.length} achievement{achievements.length !== 1 ? 's' : ''}
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {achievements.map((achievement, index) => (
+          <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center space-x-4">
+            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white">
+              {achievementIcons[achievement.achievementType] || <Trophy className="w-6 h-6" />}
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">{achievement.achievementName}</h3>
+              <p className="text-sm text-gray-600">{achievement.description}</p>
+              {achievement.points > 0 && (
+                <span className="inline-flex items-center text-xs font-medium mt-1 text-amber-700">
+                  <Star className="w-3 h-3 mr-1 fill-current" />
+                  {achievement.points} points
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Workspace() {
     const [enrolledCourses, setEnrolledCourses] = useState([]);
     const [userCourses, setUserCourses] = useState([]);
+    const [achievements, setAchievements] = useState([]);
     const [isLoadingEnrolled, setIsLoadingEnrolled] = useState(false);
     const [isLoadingUserCourses, setIsLoadingUserCourses] = useState(false);
+    const [isLoadingAchievements, setIsLoadingAchievements] = useState(false);
     const [errorEnrolled, setErrorEnrolled] = useState(null);
     const [errorUserCourses, setErrorUserCourses] = useState(null);
+    const [errorAchievements, setErrorAchievements] = useState(null);
     const { user } = useUser();
 
     useEffect(() => {
         user && GetEnrolledCourses();
         user && GetUserCourses();
+        user && GetUserAchievements();
     }, [user]);
 
     const GetEnrolledCourses = async () => {
@@ -56,27 +173,82 @@ function Workspace() {
         }
     };
 
+    const GetUserAchievements = async () => {
+        try {
+            setIsLoadingAchievements(true);
+            setErrorAchievements(null);
+            const result = await axios.get("/api/achievements");
+            console.log('User achievements:', result.data);
+            setAchievements(result.data);
+        } catch (error) {
+            console.error('Error fetching user achievements:', error);
+            if (error.response?.status === 404) {
+                setErrorAchievements('User profile not found. Please try refreshing the page.');
+            } else if (error.response?.status === 401) {
+                setErrorAchievements('Authentication required. Please sign in again.');
+            } else {
+                setErrorAchievements('Failed to load your achievements. Please try again.');
+            }
+        } finally {
+            setIsLoadingAchievements(false);
+        }
+    };
+
     const refreshAll = () => {
         GetEnrolledCourses();
         GetUserCourses();
+        GetUserAchievements();
     };
 
     return (
         <div>
             <WelcomeBanner />
             
+            {/* Study Timer */}
+            <StudyTimer />
+            
+            {/* Learning Streak Tracker */}
+            <LearningStreak />
+            
             {/* Refresh Button */}
             <div className="flex justify-end mb-6">
                 <Button 
                     variant="outline" 
                     onClick={refreshAll}
-                    disabled={isLoadingEnrolled || isLoadingUserCourses}
+                    disabled={isLoadingEnrolled || isLoadingUserCourses || isLoadingAchievements}
                     className="flex items-center gap-2"
                 >
-                    <RefreshCw className={`h-4 w-4 ${(isLoadingEnrolled || isLoadingUserCourses) ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-4 w-4 ${(isLoadingEnrolled || isLoadingUserCourses || isLoadingAchievements) ? 'animate-spin' : ''}`} />
                     Refresh All
                 </Button>
             </div>
+
+            {/* Progress Dashboard */}
+            <ProgressDashboard enrolledCourses={enrolledCourses} />
+
+            {/* Recommended Courses */}
+            <RecommendedCourses enrolledCourses={enrolledCourses} />
+
+            {/* Study Groups */}
+            <StudyGroups />
+
+            {/* Achievements Section */}
+            {isLoadingAchievements ? (
+                <div className="mb-10">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className='font-bold text-xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent'>
+                            Your Achievements
+                        </h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[0,1,2].map((item, index) => (
+                            <Skeleton key={index} className='w-full h-[100px] rounded-xl' />
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <AchievementsSection achievements={achievements} />
+            )}
 
             {/* Enrolled Courses Section */}
             <div className="mb-10">

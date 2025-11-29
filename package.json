@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "dev": "node --max-old-space-size=8192 node_modules/next/dist/bin/next dev",
+    "build": "node --max-old-space-size=8192 node_modules/next/dist/bin/next build",
+    "start": "next start",
+    "clean": "rimraf .next",
+    "fix:timestamps": "node scripts/fix-timestamps.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.31.4",
@@ -21,17 +23,20 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "axios": "^1.11.0",
+    "@tanstack/react-query": "^5.90.11",
+    "axios": "^1.13.2",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.5",
+    "hast-util-to-html": "^9.0.5",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.541.0",
     "mime": "^4.0.7",
     "next": "15.5.0",
     "next-themes": "^0.4.6",
+    "prismjs": "^1.30.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-router-dom": "^7.9.4",
@@ -39,13 +44,15 @@
     "refractor": "^5.0.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "24.3.0",
     "@types/react": "19.1.11",
     "drizzle-kit": "^0.31.4",
+    "rimraf": "^6.1.2",
     "tailwindcss": "^4",
     "tsx": "^4.20.5",
     "tw-animate-css": "^1.3.7",

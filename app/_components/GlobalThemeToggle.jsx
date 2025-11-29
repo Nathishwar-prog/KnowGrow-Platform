@@ -1,22 +1,39 @@
-"use client"
-import React from "react";
-import { useTheme } from "next-themes";
+"use client";
+
 import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import { Button } from "../../@/components/ui/button";
 
-function GlobalThemeToggle(){
-    const { theme, setTheme } = useTheme();
-    const isDark = theme === 'dark';
+export default function GlobalThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // When mounted on client, now we can show the UI
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
     return (
-        <button
-            aria-label="Toggle theme"
-            onClick={()=> setTheme(isDark ? 'light' : 'dark')}
-            className="fixed top-3 right-3 h-9 w-9 inline-flex items-center justify-center rounded-md border bg-card hover:bg-accent transition-colors z-[60] md:top-4 md:right-4"
-        >
-            {isDark ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
-        </button>
-    )
+      <Button variant="ghost" size="icon" className="rounded-full">
+        <Sun className="h-5 w-5" />
+        <span className="sr-only">Toggle theme</span>
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+    >
+      {theme === "dark" ? (
+        <Sun className="h-5 w-5 text-yellow-400" />
+      ) : (
+        <Moon className="h-5 w-5 text-gray-700" />
+      )}
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
 }
-
-export default GlobalThemeToggle;
-
-
