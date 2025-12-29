@@ -16,113 +16,53 @@ import { Loader2, AlertCircle, RefreshCw, BookOpen, Plus, Trophy, Star, Award, T
 import { useUser } from "@clerk/nextjs";
 import axios from "axios";
 import AddNewCourseDialog from "./_components/AddNewCourseDialog";
+import LearningStreak from "./_components/LearningStreak";
 
-// Add LearningStreak component
-function LearningStreak({ streak = 0, longestStreak = 0 }) {
-  // For demonstration, we'll use a fixed streak
-  // In a real implementation, this would come from user data
-  const currentStreak = streak || 5;
-  const maxStreak = longestStreak || 12;
-  
-  return (
-    <Card className="mb-8 border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Learning Streak</h2>
-            <p className="text-gray-600 mt-1">Keep up the great work!</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-gray-700">Active today</span>
-          </div>
-        </div>
-        
-        <div className="mt-6 flex items-end space-x-4">
-          <div className="text-center">
-            <div className="text-4xl font-bold text-blue-600">{currentStreak}</div>
-            <div className="text-sm text-gray-600">Current Streak</div>
-          </div>
-          
-          <div className="flex-1">
-            <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
-              <span>0</span>
-              <span>Longest: {maxStreak} days</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-4">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 h-4 rounded-full" 
-                style={{ width: `${Math.min(100, (currentStreak / maxStreak) * 100)}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="mt-6 grid grid-cols-7 gap-2">
-          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-            <div key={index} className="text-center">
-              <div className="text-xs text-gray-500 mb-1">{day}</div>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                index < 5 
-                  ? 'bg-blue-500 text-white' 
-                  : index === 5 
-                    ? 'bg-blue-300 text-white' 
-                    : 'bg-gray-200 text-gray-500'
-              }`}>
-                {index + 1}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function AchievementsSection({ achievements }) {
-  if (!achievements || achievements.length === 0) return null;
+    if (!achievements || achievements.length === 0) return null;
 
-  // Define achievement types and their icons
-  const achievementIcons = {
-    "first_course": <BookOpen className="w-6 h-6" />,
-    "quiz_master": <Target className="w-6 h-6" />,
-    "streak_7": <Star className="w-6 h-6" />,
-    "streak_30": <Trophy className="w-6 h-6" />,
-    "course_completed": <Award className="w-6 h-6" />
-  };
+    // Define achievement types and their icons
+    const achievementIcons = {
+        "first_course": <BookOpen className="w-6 h-6" />,
+        "quiz_master": <Target className="w-6 h-6" />,
+        "streak_7": <Star className="w-6 h-6" />,
+        "streak_30": <Trophy className="w-6 h-6" />,
+        "course_completed": <Award className="w-6 h-6" />
+    };
 
-  return (
-    <div className="mb-10">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className='font-bold text-xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent'>
-          Your Achievements
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          {achievements.length} achievement{achievements.length !== 1 ? 's' : ''}
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {achievements.map((achievement, index) => (
-          <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center space-x-4">
-            <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white">
-              {achievementIcons[achievement.achievementType] || <Trophy className="w-6 h-6" />}
+    return (
+        <div className="mb-10">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className='font-bold text-xl bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent'>
+                    Your Achievements
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                    {achievements.length} achievement{achievements.length !== 1 ? 's' : ''}
+                </p>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">{achievement.achievementName}</h3>
-              <p className="text-sm text-gray-600">{achievement.description}</p>
-              {achievement.points > 0 && (
-                <span className="inline-flex items-center text-xs font-medium mt-1 text-amber-700">
-                  <Star className="w-3 h-3 mr-1 fill-current" />
-                  {achievement.points} points
-                </span>
-              )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {achievements.map((achievement, index) => (
+                    <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center space-x-4">
+                        <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white">
+                            {achievementIcons[achievement.achievementType] || <Trophy className="w-6 h-6" />}
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-gray-900">{achievement.achievementName}</h3>
+                            <p className="text-sm text-gray-600">{achievement.description}</p>
+                            {achievement.points > 0 && (
+                                <span className="inline-flex items-center text-xs font-medium mt-1 text-amber-700">
+                                    <Star className="w-3 h-3 mr-1 fill-current" />
+                                    {achievement.points} points
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                ))}
             </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+        </div>
+    );
 }
 
 function Workspace() {
@@ -203,17 +143,17 @@ function Workspace() {
     return (
         <div>
             <WelcomeBanner />
-            
+
             {/* Study Timer */}
             <StudyTimer />
-            
+
             {/* Learning Streak Tracker */}
             <LearningStreak />
-            
+
             {/* Refresh Button */}
             <div className="flex justify-end mb-6">
-                <Button 
-                    variant="outline" 
+                <Button
+                    variant="outline"
                     onClick={refreshAll}
                     disabled={isLoadingEnrolled || isLoadingUserCourses || isLoadingAchievements}
                     className="flex items-center gap-2"
@@ -241,7 +181,7 @@ function Workspace() {
                         </h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {[0,1,2].map((item, index) => (
+                        {[0, 1, 2].map((item, index) => (
                             <Skeleton key={index} className='w-full h-[100px] rounded-xl' />
                         ))}
                     </div>
@@ -257,7 +197,7 @@ function Workspace() {
                         Continue Learning Your Courses
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                        {enrolledCourses.length > 0 ? 
+                        {enrolledCourses.length > 0 ?
                             `${enrolledCourses.length} enrolled course${enrolledCourses.length !== 1 ? 's' : ''}` :
                             'No enrolled courses'
                         }
@@ -272,7 +212,7 @@ function Workspace() {
                             <span>Loading enrolled courses...</span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-                            {[0,1,2].map((item, index) => (
+                            {[0, 1, 2].map((item, index) => (
                                 <Skeleton key={index} className='w-full h-[280px] rounded-xl' />
                             ))}
                         </div>
@@ -288,9 +228,9 @@ function Workspace() {
                                 <h3 className="font-semibold text-red-700 dark:text-red-400">Error Loading Enrolled Courses</h3>
                                 <p className="text-sm text-red-600 dark:text-red-300">{errorEnrolled}</p>
                             </div>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={GetEnrolledCourses}
                                 className="ml-auto"
                             >
@@ -311,8 +251,8 @@ function Workspace() {
                                     <p className="text-sm text-muted-foreground mb-4">
                                         Explore our course catalog to start learning!
                                     </p>
-                                    <Button 
-                                        variant="outline" 
+                                    <Button
+                                        variant="outline"
                                         size="sm"
                                         onClick={() => window.location.href = '/workspace/explore'}
                                     >
@@ -323,9 +263,9 @@ function Workspace() {
                         ) : (
                             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5'>
                                 {enrolledCourses.map((course, index) => (
-                                    <EnrollCourseCard 
-                                        course={course?.courses} 
-                                        enrollCourse={course?.enrollCourse} 
+                                    <EnrollCourseCard
+                                        course={course?.courses}
+                                        enrollCourse={course?.enrollCourse}
                                         key={course?.enrollCourse?.id || index}
                                     />
                                 ))}
@@ -340,7 +280,7 @@ function Workspace() {
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="font-bold text-xl">Your Created Courses</h2>
                     <p className="text-sm text-muted-foreground">
-                        {userCourses.length > 0 ? 
+                        {userCourses.length > 0 ?
                             `${userCourses.length} course${userCourses.length !== 1 ? 's' : ''} created` :
                             'No courses created'
                         }
@@ -355,7 +295,7 @@ function Workspace() {
                             <span>Loading your courses...</span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-                            {[0,1,2,3].map((item, index) => (
+                            {[0, 1, 2, 3].map((item, index) => (
                                 <Skeleton key={index} className='w-full h-[280px] rounded-xl' />
                             ))}
                         </div>
@@ -371,9 +311,9 @@ function Workspace() {
                                 <h3 className="font-semibold text-red-700 dark:text-red-400">Error Loading Your Courses</h3>
                                 <p className="text-sm text-red-600 dark:text-red-300">{errorUserCourses}</p>
                             </div>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={GetUserCourses}
                                 className="ml-auto"
                             >

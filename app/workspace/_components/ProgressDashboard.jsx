@@ -3,18 +3,17 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../@/components/ui/card";
 import { Progress } from "../../../@/components/ui/progress";
-import { Badge } from "../../../@/components/ui/badge";
-import { 
-  BookOpen, 
-  Target, 
-  Clock, 
-  TrendingUp, 
-  CheckCircle, 
-  Circle, 
-  Trophy,
+import {
+  BookOpen,
+  Target,
+  TrendingUp,
+  CheckCircle,
   Calendar,
-  Award
+  Award,
+  Zap,
+  Activity
 } from "lucide-react";
+import { getActivities, formatTimeAgo } from "./ActivityLogger";
 
 const ProgressDashboard = ({ enrolledCourses = [] }) => {
   const [stats, setStats] = useState({
@@ -26,8 +25,20 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
     averageProgress: 0
   });
 
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [courseProgressList, setCourseProgressList] = useState([]);
+
   useEffect(() => {
     calculateStats();
+    // Load activities
+    setRecentActivities(getActivities());
+
+    // Listen for storage events to update activity feed in real-time (across tabs or components)
+    const handleStorageChange = () => {
+      setRecentActivities(getActivities());
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, [enrolledCourses]);
 
   const calculateStats = () => {
@@ -35,32 +46,45 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
     let completedCourses = 0;
     let inProgressCourses = 0;
     let totalChapters = 0;
-    let completedChapters = 0;
+    let allCompletedChaptersCount = 0;
 
-    enrolledCourses.forEach(enrollment => {
+    const progressList = enrolledCourses.map(enrollment => {
       const course = enrollment?.courses;
       const enrollData = enrollment?.enrollCourse;
-      
-      if (!course || !enrollData) return;
-      
-      totalChapters += course.noOfChapters || 0;
-      
-      // For simplicity, we'll assume completed chapters are stored in enrollData.completedChapters
-      const completed = Array.isArray(enrollData.completedChapters) 
-        ? enrollData.completedChapters.length 
+
+      if (!course || !enrollData) return null;
+
+      const courseTotalChapters = course.noOfChapters || 0; // Fallback to 0 if undefined
+      const completedList = enrollData.completedChapters || []; // Ensure array
+      const completedCount = completedList.length;
+
+      totalChapters += courseTotalChapters;
+      allCompletedChaptersCount += completedCount;
+
+      // Calculate individual course progress
+      const progress = courseTotalChapters > 0
+        ? Math.round((completedCount / courseTotalChapters) * 100)
         : 0;
-      
-      completedChapters += completed;
-      
-      if (completed >= (course.noOfChapters || 0)) {
+
+      if (progress >= 100) {
         completedCourses++;
-      } else if (completed > 0) {
+      } else if (progress > 0) {
         inProgressCourses++;
       }
-    });
 
-    const averageProgress = totalChapters > 0 
-      ? Math.round((completedChapters / totalChapters) * 100) 
+      return {
+        id: course.cid,
+        title: course.name,
+        progress: Math.min(100, progress), // Cap at 100
+        chapters: courseTotalChapters,
+        completed: completedCount
+      };
+    }).filter(Boolean);
+
+    setCourseProgressList(progressList);
+
+    const averageProgress = totalChapters > 0
+      ? Math.round((allCompletedChaptersCount / totalChapters) * 100)
       : 0;
 
     setStats({
@@ -68,198 +92,163 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
       completedCourses,
       inProgressCourses,
       totalChapters,
-      completedChapters,
+      completedChapters: allCompletedChaptersCount,
       averageProgress
     });
   };
 
-  // Mock data for course progress (in a real app, this would come from the database)
-  const courseProgress = enrolledCourses.slice(0, 3).map((enrollment, index) => {
-    const course = enrollment?.courses;
-    if (!course) return null;
-    
-    // Simulate progress
-    const progress = [30, 65, 90][index] || 0;
-    
-    return {
-      id: course.cid,
-      title: course.name,
-      progress,
-      chapters: course.noOfChapters || 10,
-      completed: Math.floor((course.noOfChapters || 10) * (progress / 100))
-    };
-  }).filter(Boolean);
-
   return (
     <div className="mb-10">
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Your Learning Progress</h2>
-      
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="border-l-4 border-l-blue-500">
+        <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Courses</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalCourses}</p>
+                <p className="text-sm font-medium text-gray-500">Total Courses</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalCourses}</p>
               </div>
-              <BookOpen className="h-10 w-10 text-blue-500" />
+              <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                <BookOpen className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card className="border-l-4 border-l-green-500">
+
+        <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Completed</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.completedCourses}</p>
+                <p className="text-sm font-medium text-gray-500">Completed</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.completedCourses}</p>
               </div>
-              <CheckCircle className="h-10 w-10 text-green-500" />
+              <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card className="border-l-4 border-l-amber-500">
+
+        <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">In Progress</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.inProgressCourses}</p>
+                <p className="text-sm font-medium text-gray-500">In Progress</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.inProgressCourses}</p>
               </div>
-              <Target className="h-10 w-10 text-amber-500" />
+              <div className="h-12 w-12 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Target className="h-6 w-6 text-amber-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card className="border-l-4 border-l-purple-500">
+
+        <Card className="border-none shadow-md bg-white hover:shadow-lg transition-shadow">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Avg. Progress</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.averageProgress}%</p>
+                <p className="text-sm font-medium text-gray-500">Avg. Progress</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{stats.averageProgress}%</p>
               </div>
-              <TrendingUp className="h-10 w-10 text-purple-500" />
+              <div className="h-12 w-12 rounded-xl bg-purple-50 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <Progress value={stats.averageProgress} className="h-1.5" />
             </div>
           </CardContent>
         </Card>
       </div>
-      
-      {/* Progress Charts */}
+
+      {/* Progress Charts & Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Course Progress */}
-        <Card>
+        {/* Course Progress List */}
+        <Card className="border-none shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center">
+            <CardTitle className="flex items-center text-lg">
               <Target className="mr-2 h-5 w-5 text-blue-500" />
-              Course Progress
+              Detailed Course Progress
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
-            {courseProgress.length > 0 ? (
-              courseProgress.map((course, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex justify-between">
-                    <h3 className="font-medium text-gray-900">{course.title}</h3>
-                    <span className="text-sm text-gray-500">
-                      {course.completed}/{course.chapters} chapters
+          <CardContent className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            {courseProgressList.length > 0 ? (
+              courseProgressList.map((course, index) => (
+                <div key={index} className="space-y-2 group">
+                  <div className="flex justify-between items-end">
+                    <h3 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">{course.title}</h3>
+                    <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {course.completed}/{course.chapters} Ch
                     </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Progress value={course.progress} className="flex-1" />
-                    <span className="text-sm font-medium text-gray-700 w-12">
+                  <div className="flex items-center space-x-3">
+                    <Progress value={course.progress} className="flex-1 h-2" indicatorClassName={course.progress === 100 ? "bg-green-500" : course.progress > 50 ? "bg-blue-500" : "bg-amber-500"} />
+                    <span className="text-sm font-bold text-gray-700 w-10 text-right">
                       {course.progress}%
                     </span>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 text-center py-4">
-                Enroll in courses to track your progress
-              </p>
+              <div className="text-center py-10">
+                <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <BookOpen className="h-8 w-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 font-medium">No courses Enrolled</p>
+                <p className="text-xs text-gray-400 mt-1">Start learning to see your progress here</p>
+              </div>
             )}
           </CardContent>
         </Card>
-        
+
         {/* Learning Activity */}
-        <Card>
+        <Card className="border-none shadow-md">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="mr-2 h-5 w-5 text-green-500" />
+            <CardTitle className="flex items-center text-lg">
+              <Activity className="mr-2 h-5 w-5 text-green-500" />
               Recent Activity
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
+            <div className="space-y-6">
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-start group">
+                    <div className="flex-shrink-0 mt-1 relative">
+                      {/* Line connector */}
+                      <div className="absolute top-8 left-1/2 -ml-px w-0.5 h-full bg-gray-100 group-last:hidden" aria-hidden="true"></div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ring-4 ring-white relative z-10 ${activity.type === 'success' ? 'bg-green-100 text-green-600' :
+                          activity.type === 'award' ? 'bg-amber-100 text-amber-600' :
+                            'bg-blue-100 text-blue-600'
+                        }`}>
+                        {activity.type === 'success' ? <CheckCircle className="h-4 w-4" /> :
+                          activity.type === 'award' ? <Award className="h-4 w-4" /> :
+                            <BookOpen className="h-4 w-4" />}
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {activity.title}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">{formatTimeAgo(activity.timestamp)}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">
-                    Completed JavaScript Basics Chapter 3
-                  </p>
-                  <p className="text-sm text-gray-500">2 hours ago</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <BookOpen className="h-4 w-4 text-blue-600" />
+                ))
+              ) : (
+                <div className="text-center py-10">
+                  <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Activity className="h-8 w-8 text-gray-400" />
                   </div>
+                  <p className="text-gray-500 font-medium">No recent activity</p>
+                  <p className="text-xs text-gray-400 mt-1">Your learning actions will appear here</p>
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">
-                    Started React Fundamentals Course
-                  </p>
-                  <p className="text-sm text-gray-500">1 day ago</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start">
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                    <Trophy className="h-4 w-4 text-amber-600" />
-                  </div>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-900">
-                    Earned "First Steps" Achievement
-                  </p>
-                  <p className="text-sm text-gray-500">2 days ago</p>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
-      
-      {/* Weekly Goal */}
-      <Card className="mt-8">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-center">
-                <Award className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-lg font-semibold text-gray-900">Weekly Learning Goal</h3>
-                <p className="text-gray-600">Complete 5 chapters this week</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900">3/5</p>
-              <p className="text-sm text-gray-500">chapters completed</p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <Progress value={60} className="h-3" />
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };

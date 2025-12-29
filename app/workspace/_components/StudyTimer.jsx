@@ -1,66 +1,72 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Play, Pause, RotateCcw, Coffee, Zap } from "lucide-react";
+import { Play, Pause, RotateCcw, Coffee, Zap, Timer, Clock } from "lucide-react";
 import { Card, CardContent } from "../../../@/components/ui/card";
 import { Button } from "../../../@/components/ui/button";
+import { cn } from "../../../@/lib/utils"; // Utils located in @/lib
 
 const StudyTimer = () => {
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
+  // Timer State
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [initialTime, setInitialTime] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [mode, setMode] = useState("focus"); // focus, shortBreak, longBreak
   const [sessions, setSessions] = useState(0);
-  const intervalRef = useRef(null);
 
-  // Timer modes
+  // Real Clock State
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  const intervalRef = useRef(null);
+  const clockIntervalRef = useRef(null);
+
   const modes = {
-    focus: { duration: 25 * 60, label: "Focus Time", color: "from-red-500 to-orange-500" },
-    shortBreak: { duration: 5 * 60, label: "Short Break", color: "from-green-500 to-emerald-500" },
-    longBreak: { duration: 15 * 60, label: "Long Break", color: "from-blue-500 to-indigo-500" }
+    focus: { duration: 25 * 60, label: "Focus", color: "text-rose-500", ringColor: "stroke-rose-500" },
+    shortBreak: { duration: 5 * 60, label: "Short Break", color: "text-emerald-500", ringColor: "stroke-emerald-500" },
+    longBreak: { duration: 15 * 60, label: "Long Break", color: "text-blue-500", ringColor: "stroke-blue-500" }
   };
 
-  // Format time for display
+  useEffect(() => {
+    // Clock ticker
+    clockIntervalRef.current = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(clockIntervalRef.current);
+  }, []);
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Start/pause timer
-  const toggleTimer = () => {
-    setIsActive(!isActive);
-  };
+  const toggleTimer = () => setIsActive(!isActive);
 
-  // Reset timer
   const resetTimer = () => {
     setIsActive(false);
     setTimeLeft(modes[mode].duration);
+    setInitialTime(modes[mode].duration);
   };
 
-  // Switch mode
   const switchMode = (newMode) => {
     setIsActive(false);
     setMode(newMode);
     setTimeLeft(modes[newMode].duration);
+    setInitialTime(modes[newMode].duration);
   };
 
-  // Complete session
   const completeSession = () => {
     if (mode === "focus") {
-      setSessions(sessions + 1);
-      
-      // After 4 focus sessions, take a long break
-      if ((sessions + 1) % 4 === 0) {
-        switchMode("longBreak");
-      } else {
-        switchMode("shortBreak");
-      }
+      setSessions(s => s + 1);
+      const nextSession = (sessions + 1) % 4 === 0 ? "longBreak" : "shortBreak";
+      switchMode(nextSession);
+      // Play sound here if possible
     } else {
       switchMode("focus");
     }
   };
 
-  // Timer effect
   useEffect(() => {
     if (isActive && timeLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -68,102 +74,120 @@ const StudyTimer = () => {
       }, 1000);
     } else if (isActive && timeLeft === 0) {
       setIsActive(false);
-      // Timer completed
       completeSession();
     }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
+    return () => clearInterval(intervalRef.current);
   }, [isActive, timeLeft]);
 
-  // Reset timer when mode changes
-  useEffect(() => {
-    setTimeLeft(modes[mode].duration);
-  }, [mode]);
+  // SVG parameters for progress ring
+  const radius = 80;
+  const circumference = 2 * Math.PI * radius;
+  const progressOffset = circumference - ((initialTime - timeLeft) / initialTime) * circumference;
 
   return (
-    <Card className="mb-8">
+    <Card className="mb-8 border-none shadow-xl bg-white dark:bg-gray-900 overflow-hidden relative">
       <CardContent className="p-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Study Timer</h2>
-          <p className="text-gray-600 mb-6">Stay focused with the Pomodoro Technique</p>
-          
-          <div className={`relative inline-flex items-center justify-center w-64 h-64 rounded-full bg-gradient-to-br ${modes[mode].color} mb-6`}>
-            <div className="absolute inset-4 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-gray-900 dark:text-white">
-                  {formatTime(timeLeft)}
-                </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  {modes[mode].label}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Sessions: {sessions}
-                </div>
-              </div>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+              <Timer className="w-6 h-6" /> Study Timer
+            </h2>
+            <p className="text-gray-500 text-sm">Target: Focus & Consistency</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-mono font-bold text-gray-700 dark:text-gray-200">
+              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+            <div className="text-xs text-gray-400 font-medium uppercase tracking-widest">
+              {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
           </div>
-          
-          <div className="flex justify-center space-x-4 mb-6">
-            <Button
-              onClick={toggleTimer}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-            >
-              {isActive ? (
-                <>
-                  <Pause className="mr-2 h-4 w-4" />
-                  Pause
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Start
-                </>
-              )}
-            </Button>
-            
-            <Button
-              onClick={resetTimer}
-              variant="outline"
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Reset
-            </Button>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+          {/* Circular Timer Display */}
+          <div className="relative w-64 h-64 flex items-center justify-center">
+            {/* Background Ring */}
+            <svg className="w-full h-full transform -rotate-90">
+              <circle
+                cx="50%" cy="50%" r={radius}
+                className="stroke-gray-100 dark:stroke-gray-800 fill-none"
+                strokeWidth="12"
+              />
+              {/* Progress Ring */}
+              <circle
+                cx="50%" cy="50%" r={radius}
+                className={`fill-none transition-all duration-1000 ease-linear ${modes[mode].ringColor}`}
+                strokeWidth="12"
+                strokeDasharray={circumference}
+                strokeDashoffset={progressOffset}
+                strokeLinecap="round"
+              />
+            </svg>
+
+            {/* Center Content */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className={`text-6xl font-bold font-mono tracking-tighter ${modes[mode].color} drop-shadow-sm`}>
+                {formatTime(timeLeft)}
+              </span>
+              <span className="text-sm font-medium text-gray-500 uppercase tracking-widest mt-2 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+                {modes[mode].label}
+              </span>
+            </div>
           </div>
-          
-          <div className="flex justify-center space-x-2">
-            <Button
-              variant={mode === "focus" ? "default" : "outline"}
-              size="sm"
-              onClick={() => switchMode("focus")}
-              className={mode === "focus" ? "bg-red-500 hover:bg-red-600" : ""}
-            >
-              <Zap className="mr-1 h-3 w-3" />
-              Focus
-            </Button>
-            
-            <Button
-              variant={mode === "shortBreak" ? "default" : "outline"}
-              size="sm"
-              onClick={() => switchMode("shortBreak")}
-              className={mode === "shortBreak" ? "bg-green-500 hover:bg-green-600" : ""}
-            >
-              <Coffee className="mr-1 h-3 w-3" />
-              Short
-            </Button>
-            
-            <Button
-              variant={mode === "longBreak" ? "default" : "outline"}
-              size="sm"
-              onClick={() => switchMode("longBreak")}
-              className={mode === "longBreak" ? "bg-blue-500 hover:bg-blue-600" : ""}
-            >
-              <Coffee className="mr-1 h-3 w-3" />
-              Long
-            </Button>
+
+          {/* Controls */}
+          <div className="flex-1 w-full space-y-6">
+            <div className="grid grid-cols-3 gap-3 bg-gray-50 dark:bg-gray-800 p-2 rounded-xl">
+              <button
+                onClick={() => switchMode("focus")}
+                className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'focus' ? 'bg-white shadow-md text-rose-500' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+              >
+                <Zap className="w-5 h-5 mb-1" />
+                <span className="text-xs font-semibold">Focus</span>
+              </button>
+              <button
+                onClick={() => switchMode("shortBreak")}
+                className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'shortBreak' ? 'bg-white shadow-md text-emerald-500' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+              >
+                <Coffee className="w-5 h-5 mb-1" />
+                <span className="text-xs font-semibold">Short</span>
+              </button>
+              <button
+                onClick={() => switchMode("longBreak")}
+                className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'longBreak' ? 'bg-white shadow-md text-blue-500' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+              >
+                <Clock className="w-5 h-5 mb-1" />
+                <span className="text-xs font-semibold">Long</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={toggleTimer}
+                className={`flex-1 h-14 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${isActive
+                  ? 'bg-amber-500 hover:bg-amber-600'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+              >
+                {isActive ? (
+                  <> <Pause className="mr-2 h-6 w-6" /> PAUSE </>
+                ) : (
+                  <> <Play className="mr-2 h-6 w-6" /> START </>
+                )}
+              </Button>
+              <Button
+                onClick={resetTimer}
+                variant="outline"
+                className="h-14 w-14 rounded-xl border-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <RotateCcw className="h-6 w-6 text-gray-500" />
+              </Button>
+            </div>
+
+            <div className="text-center text-sm text-gray-400">
+              Sessions completed today: <span className="text-gray-900 dark:text-gray-100 font-bold ml-1">{sessions}</span>
+            </div>
           </div>
         </div>
       </CardContent>

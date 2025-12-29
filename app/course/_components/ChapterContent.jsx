@@ -7,6 +7,7 @@ import axios from "axios";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import CodeEnhancer from "./CodeEnhancer";
+import { logActivity } from "../../workspace/_components/ActivityLogger";
 
 function ChapterContent({ courseInfo, refreshData }) {
     const { courseId } = useParams();
@@ -28,6 +29,11 @@ function ChapterContent({ courseInfo, refreshData }) {
 
         console.log(result);
         refreshData();
+
+        // Log activity
+        const chapterName = courseContent?.[selectedChapterIndex]?.courseData?.chapterName || `Chapter ${selectedChapterIndex + 1}`;
+        logActivity(`Completed: ${chapterName}`, 'success');
+
         toast.success('Chapter Marked Completed!');
         setLoading(false);
     };

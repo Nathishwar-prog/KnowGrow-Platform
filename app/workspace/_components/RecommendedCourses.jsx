@@ -7,12 +7,16 @@ import { Skeleton } from "../../../@/components/ui/skeleton";
 import { BookOpen, Star, Clock, TrendingUp } from "lucide-react";
 import axios from "axios";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { logActivity } from "./ActivityLogger";
 
 const RecommendedCourses = ({ userInterests = [], enrolledCourses = [] }) => {
   const [recommendedCourses, setRecommendedCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
   const { isLoaded, isSignedIn, user } = useUser();
+  const router = useRouter();
 
   const hasFetched = useRef(false);
 
@@ -26,24 +30,24 @@ const RecommendedCourses = ({ userInterests = [], enrolledCourses = [] }) => {
   const fetchRecommendedCourses = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // In a real implementation, this would call an API that uses AI to recommend courses
       // For now, we'll simulate recommendations
-      
+
       // Get all courses (in a real app, this would be a recommendation API)
       const response = await axios.get("/api/courses?courseId=0&search=popular");
       const allCourses = response.data;
-      
+
       // Filter out already enrolled courses
       const enrolledCourseIds = enrolledCourses.map(ec => ec?.courses?.cid || ec?.cid);
-      const availableCourses = allCourses.filter(course => 
+      const availableCourses = allCourses.filter(course =>
         !enrolledCourseIds.includes(course.cid)
       );
-      
+
       // Sort by popularity or relevance (simulated)
       const sortedCourses = [...availableCourses].sort(() => Math.random() - 0.5);
-      
+
       // Take top 3 recommendations
       setRecommendedCourses(sortedCourses.slice(0, 3));
     } catch (err) {
@@ -95,9 +99,9 @@ const RecommendedCourses = ({ userInterests = [], enrolledCourses = [] }) => {
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-6">
             <p className="text-red-700">{error}</p>
-            <Button 
-              variant="outline" 
-              className="mt-4" 
+            <Button
+              variant="outline"
+              className="mt-4"
               onClick={fetchRecommendedCourses}
             >
               Retry
@@ -120,7 +124,7 @@ const RecommendedCourses = ({ userInterests = [], enrolledCourses = [] }) => {
           View All
         </Button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {recommendedCourses.map((course, index) => (
           <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow duration-300 border border-gray-200">
@@ -134,15 +138,15 @@ const RecommendedCourses = ({ userInterests = [], enrolledCourses = [] }) => {
                   <span className="text-sm font-medium ml-1">4.8</span>
                 </div>
               </div>
-              
+
               <h3 className="font-semibold text-lg text-gray-900 mt-4 line-clamp-2">
                 {course.name}
               </h3>
-              
+
               <p className="text-gray-600 text-sm mt-2 line-clamp-2">
                 {course.description}
               </p>
-              
+
               <div className="flex items-center justify-between mt-4">
                 <div className="flex items-center text-gray-500 text-sm">
                   <Clock className="w-4 h-4 mr-1" />
@@ -152,10 +156,13 @@ const RecommendedCourses = ({ userInterests = [], enrolledCourses = [] }) => {
                   {course.level}
                 </span>
               </div>
-              
-              <Button 
+
+              <Button
                 className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-                onClick={() => window.location.href = `/course/${course.cid}`}
+                onClick={() => {
+                  logActivity(`Started ${course.name}`, 'info');
+                  router.push(`/course/${course.cid}`);
+                }}
               >
                 Start Learning
               </Button>
