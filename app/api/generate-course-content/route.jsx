@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { generateContent, parseJsonResponse } from "../../../@/lib/generateContent";
 import axios from "axios";
 import { db } from "../../../config/db";
@@ -84,128 +83,177 @@ async function fetchYoutubeVideos(searchQuery, maxResults = 4) {
   }
 }
 
+function createSSEMessage(type, message, data = null) {
+  const payload = { type, message, timestamp: Date.now() };
+  if (data) payload.data = data;
+  return `data: ${JSON.stringify(payload)}\n\n`;
+}
+
 export async function POST(req) {
-  try {
-    const user = await currentUser();
-    
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Authentication required" },
-        { status: 401 }
-      );
-    }
-    
-    const userId = user.id;
-    const rateCheck = checkRateLimit(userId);
-    
-    if (!rateCheck.allowed) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: `Please wait ${rateCheck.waitTime} seconds before generating more content.` 
-        },
-        { status: 429 }
-      );
-    }
-    
-    const { courseJson, courseTitle, courseId } = await req.json();
-    
-    if (!courseJson?.chapters || !courseId) {
-      return NextResponse.json(
-        { success: false, error: "Course data and ID are required" },
-        { status: 400 }
-      );
-    }
-
-    const chaptersWithContent = [];
-
-    for (let i = 0; i < courseJson.chapters.length; i++) {
-      const chapter = courseJson.chapters[i];
-      const chapterId = uuidv4();
-      const chapterName = chapter?.chapterName || chapter?.name || `Chapter ${i + 1}`;
-      const topics = chapter?.topics || [];
-
-      console.log(`[Course Content] Processing chapter ${i + 1}: ${chapterName}`);
-
-      const youtubeQuery = `${courseTitle} ${chapterName} ${topics.slice(0, 2).join(' ')} tutorial`;
-      const youtubeVideos = await fetchYoutubeVideos(youtubeQuery, 4);
-      
-      console.log(`[YouTube] Found ${youtubeVideos.length} videos for chapter ${i + 1}`);
-
-      const prompt = PROMPT + '\n\nInput Data:\n' +
-        'Chapter Name: ' + chapterName + '\n' +
-        'Course Name: ' + courseTitle + '\n' +
-        JSON.stringify(chapter);
-
-      const aiResult = await generateContent(prompt, {
-        geminiModel: 'gemini-2.5-flash',
-        maxGeminiRetries: 1,
-        geminiBackoffMs: 2000,
-      });
-
-      let courseData = { topics: [], chapterName, error: false };
-
-      if (aiResult.success) {
-        console.log(`[Course Content] Chapter ${i + 1} generated via ${aiResult.provider}`);
-        const parsed = parseJsonResponse(aiResult.content);
-        
-        if (parsed.success) {
-          courseData = {
-            ...parsed.data,
-            chapterName
-          };
-        } else {
-          console.error(`[Course Content] Failed to parse AI response for chapter ${i + 1}`);
-          courseData.error = true;
+  const encoder = new TextEncoder();
+  
+  const stream = new ReadableStream({
+    async start(controller) {
+      const sendProgress = (type, message, data = null) => {
+        try {
+          controller.enqueue(encoder.encode(createSSEMessage(type, message, data)));
+        } catch (e) {
+          console.error('[SSE] Failed to send:', e);
         }
-      } else {
-        console.error(`[Course Content] AI failed for chapter ${i + 1}`);
-        courseData.error = true;
-      }
+      };
 
-      chaptersWithContent.push({
-        chapterId,
-        orderIndex: i,
-        chapterName,
-        youtubeVideo: youtubeVideos,
-        courseData
-      });
+      try {
+        const user = await currentUser();
+        
+        if (!user) {
+          sendProgress('error', 'Authentication required');
+          controller.close();
+          return;
+        }
+        
+        const userId = user.id;
+        const rateCheck = checkRateLimit(userId);
+        
+        if (!rateCheck.allowed) {
+          sendProgress('error', `Please wait ${rateCheck.waitTime} seconds before generating more content.`);
+          controller.close();
+          return;
+        }
+        
+        const body = await req.json();
+        const { courseJson, courseTitle, courseId } = body;
+        
+        if (!courseJson?.chapters || !courseId) {
+          sendProgress('error', 'Course data and ID are required');
+          controller.close();
+          return;
+        }
 
-      if (i < courseJson.chapters.length - 1) {
-        await new Promise(res => setTimeout(res, 500));
+        sendProgress('progress', 'Starting course generation...');
+        
+        const totalChapters = courseJson.chapters.length;
+        sendProgress('progress', `Preparing to generate ${totalChapters} chapters`);
+
+        const chaptersWithContent = [];
+
+        for (let i = 0; i < totalChapters; i++) {
+          const chapter = courseJson.chapters[i];
+          const chapterId = uuidv4();
+          const chapterName = chapter?.chapterName || chapter?.name || `Chapter ${i + 1}`;
+          const topics = chapter?.topics || [];
+          const chapterNum = i + 1;
+
+          sendProgress('progress', `Chapter ${chapterNum}/${totalChapters}: Generating content for "${chapterName}"...`);
+
+          const prompt = PROMPT + '\n\nInput Data:\n' +
+            'Chapter Name: ' + chapterName + '\n' +
+            'Course Name: ' + courseTitle + '\n' +
+            JSON.stringify(chapter);
+
+          const aiResult = await generateContent(prompt, {
+            geminiModel: 'gemini-2.5-flash',
+            maxGeminiRetries: 1,
+            geminiBackoffMs: 2000,
+          });
+
+          let courseData = { topics: [], chapterName, error: false };
+
+          if (aiResult.success) {
+            sendProgress('progress', `Chapter ${chapterNum}: Content generated via ${aiResult.provider}`);
+            const parsed = parseJsonResponse(aiResult.content);
+            
+            if (parsed.success) {
+              courseData = {
+                ...parsed.data,
+                chapterName
+              };
+              sendProgress('progress', `Chapter ${chapterNum}: Content parsed successfully`);
+            } else {
+              console.error(`[Course Content] Failed to parse AI response for chapter ${chapterNum}`);
+              sendProgress('warning', `Chapter ${chapterNum}: Content parsing issue, using fallback`);
+              courseData.error = true;
+            }
+          } else {
+            console.error(`[Course Content] AI failed for chapter ${chapterNum}`);
+            sendProgress('warning', `Chapter ${chapterNum}: AI generation issue`);
+            courseData.error = true;
+          }
+
+          sendProgress('progress', `Chapter ${chapterNum}: Fetching YouTube videos...`);
+          
+          const youtubeQuery = `${courseTitle} ${chapterName} ${topics.slice(0, 2).join(' ')} tutorial`;
+          const youtubeVideos = await fetchYoutubeVideos(youtubeQuery, 4);
+          
+          if (youtubeVideos.length > 0) {
+            sendProgress('progress', `Chapter ${chapterNum}: Found ${youtubeVideos.length} relevant videos`);
+          } else {
+            sendProgress('progress', `Chapter ${chapterNum}: No videos found, continuing...`);
+          }
+
+          chaptersWithContent.push({
+            chapterId,
+            orderIndex: i,
+            chapterName,
+            youtubeVideo: youtubeVideos,
+            courseData
+          });
+
+          sendProgress('progress', `Chapter ${chapterNum}/${totalChapters} completed ✓`, {
+            completedChapters: chapterNum,
+            totalChapters,
+            progress: Math.round((chapterNum / totalChapters) * 100)
+          });
+
+          if (i < totalChapters - 1) {
+            await new Promise(res => setTimeout(res, 300));
+          }
+        }
+
+        const hasAnyContent = chaptersWithContent.some(ch => 
+          ch.courseData?.topics?.length > 0 && !ch.courseData.error
+        );
+
+        if (!hasAnyContent) {
+          sendProgress('error', 'Failed to generate any chapter content. Please try again.');
+          controller.close();
+          return;
+        }
+
+        sendProgress('progress', 'Saving course to database...');
+
+        await db.update(coursesTable).set({
+          courseContent: chaptersWithContent
+        }).where(eq(coursesTable.cid, courseId));
+
+        sendProgress('progress', 'Course saved successfully!');
+
+        sendProgress('done', 'Course generation completed!', {
+          courseName: courseTitle,
+          chaptersProcessed: chaptersWithContent.length,
+          chaptersWithVideos: chaptersWithContent.filter(ch => ch.youtubeVideo?.length > 0).length,
+          success: true
+        });
+
+        controller.close();
+      } catch (error) {
+        console.error("[Course Content] Route Error:", error);
+        const sendProgress = (type, message) => {
+          try {
+            controller.enqueue(encoder.encode(createSSEMessage(type, message)));
+          } catch (e) {}
+        };
+        sendProgress('error', 'Failed to generate course content. Please try again.');
+        controller.close();
       }
     }
+  });
 
-    const hasAnyContent = chaptersWithContent.some(ch => 
-      ch.courseData?.topics?.length > 0 && !ch.courseData.error
-    );
-
-    if (!hasAnyContent) {
-      return NextResponse.json(
-        { success: false, error: "Failed to generate any chapter content. Please try again." },
-        { status: 500 }
-      );
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
     }
-
-    await db.update(coursesTable).set({
-      courseContent: chaptersWithContent
-    }).where(eq(coursesTable.cid, courseId));
-
-    console.log(`[Course Content] Saved ${chaptersWithContent.length} chapters for course ${courseId}`);
-
-    return NextResponse.json({
-      success: true,
-      courseName: courseTitle,
-      CourseContent: chaptersWithContent,
-      chaptersProcessed: chaptersWithContent.length,
-      chaptersWithVideos: chaptersWithContent.filter(ch => ch.youtubeVideo?.length > 0).length
-    });
-  } catch (error) {
-    console.error("[Course Content] Route Error:", error);
-    
-    return NextResponse.json(
-      { success: false, error: "Failed to generate course content. Please try again." },
-      { status: 500 }
-    );
-  }
+  });
 }
