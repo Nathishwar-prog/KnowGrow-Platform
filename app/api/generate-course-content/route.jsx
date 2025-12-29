@@ -5,6 +5,7 @@ import { db } from "../../../config/db";
 import { coursesTable } from "../../../config/schema";
 import { eq } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
+import { v4 as uuidv4 } from "uuid";
 
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW_MS = 60000;
@@ -48,6 +49,41 @@ const PROMPT = 'Generate a detailed course content for the following chapter in 
   '- Ensure content is detailed, technical, and includes best practices.\n\n' +
   'Strictly return ONLY the JSON object.';
 
+const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
+
+async function fetchYoutubeVideos(searchQuery, maxResults = 4) {
+  try {
+    if (!process.env.YOUTUBE_API_KEY) {
+      console.warn("[YouTube] Missing YOUTUBE_API_KEY");
+      return [];
+    }
+    
+    const params = {
+      part: 'snippet',
+      q: searchQuery,
+      maxResults: maxResults,
+      type: 'video',
+      videoEmbeddable: 'true',
+      key: process.env.YOUTUBE_API_KEY
+    };
+
+    const resp = await axios.get(YOUTUBE_BASE_URL, { params, timeout: 10000 });
+    const items = resp.data.items || [];
+    
+    return items.map(item => ({
+      videoId: item.id?.videoId,
+      title: item?.snippet?.title || '',
+      thumbnail: item?.snippet?.thumbnails?.medium?.url || item?.snippet?.thumbnails?.default?.url || '',
+      videoUrl: item.id?.videoId ? `https://www.youtube.com/watch?v=${item.id.videoId}` : '',
+      channelTitle: item?.snippet?.channelTitle || '',
+      publishedAt: item?.snippet?.publishedAt || ''
+    }));
+  } catch (e) {
+    console.error('[YouTube] API error:', e?.response?.data || e?.message);
+    return [];
+  }
+}
+
 export async function POST(req) {
   try {
     const user = await currentUser();
@@ -81,9 +117,23 @@ export async function POST(req) {
       );
     }
 
-    const processChapter = async (chapter, index) => {
+    const chaptersWithContent = [];
+
+    for (let i = 0; i < courseJson.chapters.length; i++) {
+      const chapter = courseJson.chapters[i];
+      const chapterId = uuidv4();
+      const chapterName = chapter?.chapterName || chapter?.name || `Chapter ${i + 1}`;
+      const topics = chapter?.topics || [];
+
+      console.log(`[Course Content] Processing chapter ${i + 1}: ${chapterName}`);
+
+      const youtubeQuery = `${courseTitle} ${chapterName} ${topics.slice(0, 2).join(' ')} tutorial`;
+      const youtubeVideos = await fetchYoutubeVideos(youtubeQuery, 4);
+      
+      console.log(`[YouTube] Found ${youtubeVideos.length} videos for chapter ${i + 1}`);
+
       const prompt = PROMPT + '\n\nInput Data:\n' +
-        'Chapter Name: ' + chapter?.name + '\n' +
+        'Chapter Name: ' + chapterName + '\n' +
         'Course Name: ' + courseTitle + '\n' +
         JSON.stringify(chapter);
 
@@ -93,62 +143,65 @@ export async function POST(req) {
         geminiBackoffMs: 2000,
       });
 
-      if (!aiResult.success) {
-        throw new Error(`AI service unavailable for chapter: ${chapter?.name || index}`);
+      let courseData = { topics: [], chapterName, error: false };
+
+      if (aiResult.success) {
+        console.log(`[Course Content] Chapter ${i + 1} generated via ${aiResult.provider}`);
+        const parsed = parseJsonResponse(aiResult.content);
+        
+        if (parsed.success) {
+          courseData = {
+            ...parsed.data,
+            chapterName
+          };
+        } else {
+          console.error(`[Course Content] Failed to parse AI response for chapter ${i + 1}`);
+          courseData.error = true;
+        }
+      } else {
+        console.error(`[Course Content] AI failed for chapter ${i + 1}`);
+        courseData.error = true;
       }
 
-      console.log(`[Course Content] Chapter ${index + 1} generated via ${aiResult.provider}`);
+      chaptersWithContent.push({
+        chapterId,
+        orderIndex: i,
+        chapterName,
+        youtubeVideo: youtubeVideos,
+        courseData
+      });
 
-      const parsed = parseJsonResponse(aiResult.content);
-      
-      if (!parsed.success) {
-        throw new Error("Invalid JSON returned by model");
-      }
-
-      const youtubeData = await GetYoutubeVideo(chapter?.name);
-
-      return {
-        youtubeVideo: youtubeData,
-        courseData: {
-          ...parsed.data,
-          chapterName: chapter?.name
-        }
-      };
-    };
-
-    const results = [];
-    for (let i = 0; i < courseJson.chapters.length; i++) {
-      const chapter = courseJson.chapters[i];
-      try {
-        const result = await processChapter(chapter, i);
-        results.push(result);
-        if (i < courseJson.chapters.length - 1) {
-          await new Promise(res => setTimeout(res, 500));
-        }
-      } catch (chapterError) {
-        console.error(`Error processing chapter ${i}:`, chapterError);
-        results.push({
-          youtubeVideo: [],
-          courseData: {
-            topics: [],
-            chapterName: chapter?.name,
-            error: true
-          }
-        });
+      if (i < courseJson.chapters.length - 1) {
+        await new Promise(res => setTimeout(res, 500));
       }
     }
 
+    const hasAnyContent = chaptersWithContent.some(ch => 
+      ch.courseData?.topics?.length > 0 && !ch.courseData.error
+    );
+
+    if (!hasAnyContent) {
+      return NextResponse.json(
+        { success: false, error: "Failed to generate any chapter content. Please try again." },
+        { status: 500 }
+      );
+    }
+
     await db.update(coursesTable).set({
-      courseContent: results
+      courseContent: chaptersWithContent
     }).where(eq(coursesTable.cid, courseId));
+
+    console.log(`[Course Content] Saved ${chaptersWithContent.length} chapters for course ${courseId}`);
 
     return NextResponse.json({
       success: true,
       courseName: courseTitle,
-      CourseContent: results
+      CourseContent: chaptersWithContent,
+      chaptersProcessed: chaptersWithContent.length,
+      chaptersWithVideos: chaptersWithContent.filter(ch => ch.youtubeVideo?.length > 0).length
     });
   } catch (error) {
-    console.error("Route Error:", error);
+    console.error("[Course Content] Route Error:", error);
     
     return NextResponse.json(
       { success: false, error: "Failed to generate course content. Please try again." },
@@ -156,39 +209,3 @@ export async function POST(req) {
     );
   }
 }
-
-const YOUTUBE_BASE_URL = 'https://www.googleapis.com/youtube/v3/search';
-
-const GetYoutubeVideo = async (topic) => {
-  try {
-    if (!process.env.YOUTUBE_API_KEY) {
-      console.warn("Missing YOUTUBE_API_KEY");
-      return [];
-    }
-    
-    const params = {
-      part: 'snippet',
-      q: topic,
-      maxResults: 4,
-      type: 'video',
-      key: process.env.YOUTUBE_API_KEY
-    };
-
-    const resp = await axios.get(YOUTUBE_BASE_URL, { params, timeout: 10000 });
-    const youtubeVideoListResp = resp.data.items || [];
-    const youtubeVideoList = [];
-    
-    youtubeVideoListResp.forEach(item => {
-      const data = {
-        videoId: item.id?.videoId,
-        title: item?.snippet?.title
-      };
-      youtubeVideoList.push(data);
-    });
-    
-    return youtubeVideoList;
-  } catch (e) {
-    console.error('YouTube API error:', e?.response?.data || e?.message);
-    return [];
-  }
-};
