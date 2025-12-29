@@ -1,86 +1,66 @@
 "use client";
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import Prism from "prismjs";
 
-// Custom syntax highlighter that doesn't require external dependencies
-const CustomSyntaxHighlighter = ({ children, language = "text", theme = "light" }) => {
-  const isDark = theme === 'dark';
-  
-  // Basic syntax highlighting for common languages
-  const highlightCode = (code, lang) => {
-    if (!lang || lang === 'text') return code;
-    
-    // Simple keyword highlighting
-    const keywords = {
-      javascript: ['function', 'const', 'let', 'var', 'if', 'else', 'for', 'while', 'return', 'class', 'import', 'export', 'async', 'await'],
-      python: ['def', 'class', 'if', 'else', 'elif', 'for', 'while', 'import', 'from', 'return', 'try', 'except', 'finally'],
-      java: ['public', 'private', 'protected', 'class', 'interface', 'extends', 'implements', 'static', 'final', 'if', 'else', 'for', 'while', 'return'],
-      css: ['@media', '@keyframes', '@import', 'margin', 'padding', 'border', 'color', 'background', 'font', 'display', 'position'],
-      sql: ['SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP', 'JOIN', 'GROUP BY', 'ORDER BY']
-    };
-    
-    const langKeywords = keywords[lang] || [];
-    let highlightedCode = code;
-    
-    // Highlight keywords
-    langKeywords.forEach(keyword => {
-      const regex = new RegExp(`\\b${keyword}\\b`, 'g');
-      highlightedCode = highlightedCode.replace(regex, `<span class="keyword">${keyword}</span>`);
-    });
-    
-    // Highlight strings
-    highlightedCode = highlightedCode.replace(/(["'])((?:\\.|(?!\1)[^\\])*?)\1/g, '<span class="string">$1$2$1</span>');
-    
-    // Highlight comments
-    if (lang === 'javascript' || lang === 'java') {
-      highlightedCode = highlightedCode.replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>');
-      highlightedCode = highlightedCode.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="comment">$1</span>');
-    } else if (lang === 'python') {
-      highlightedCode = highlightedCode.replace(/(#.*$)/gm, '<span class="comment">$1</span>');
-    } else if (lang === 'css') {
-      highlightedCode = highlightedCode.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="comment">$1</span>');
+// Import Prism themes and languages
+import "prismjs/themes/prism-tomorrow.css";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-jsx";
+import "prismjs/components/prism-tsx";
+import "prismjs/components/prism-css";
+import "prismjs/components/prism-json";
+import "prismjs/components/prism-markdown";
+import "prismjs/components/prism-bash";
+import "prismjs/components/prism-sql";
+import "prismjs/components/prism-java";
+
+const CustomSyntaxHighlighter = ({ children, language = "text", theme = "dark" }) => {
+  const codeRef = useRef(null);
+
+  useEffect(() => {
+    if (codeRef.current) {
+      Prism.highlightElement(codeRef.current);
     }
-    
-    // Highlight numbers
-    highlightedCode = highlightedCode.replace(/\b(\d+\.?\d*)\b/g, '<span class="number">$1</span>');
-    
-    return highlightedCode;
-  };
-  
-  const highlightedCode = highlightCode(children, language);
-  
+  }, [children, language]);
+
+  const langClass = `language-${language}`;
+
   return (
-    <div className="relative">
+    <div className="relative group">
       <pre 
-        className={`p-4 rounded-lg overflow-x-auto text-sm font-mono ${
-          isDark 
-            ? 'bg-gray-900 text-gray-100 border border-gray-700' 
-            : 'bg-gray-100 text-gray-900 border border-gray-300'
-        }`}
+        className={`${langClass} !m-0 !p-4 !bg-transparent text-sm font-mono scrollbar-thin scrollbar-thumb-white/10`}
       >
         <code 
-          className={`${isDark ? 'text-gray-100' : 'text-gray-900'}`}
-          dangerouslySetInnerHTML={{ __html: highlightedCode }}
-        />
+          ref={codeRef}
+          className={langClass}
+        >
+          {children}
+        </code>
       </pre>
-      <style jsx>{`
-        .keyword {
-          color: ${isDark ? '#c678dd' : '#d73a49'};
-          font-weight: 600;
+      
+      {/* Custom styles to override Prism defaults for better integration */}
+      <style jsx global>{`
+        pre[class*="language-"] {
+          background: transparent !important;
+          text-shadow: none !important;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
         }
-        .string {
-          color: ${isDark ? '#98c379' : '#032f62'};
+        code[class*="language-"] {
+          text-shadow: none !important;
         }
-        .comment {
-          color: ${isDark ? '#5c6370' : '#6a737d'};
-          font-style: italic;
-        }
-        .number {
-          color: ${isDark ? '#d19a66' : '#005cc5'};
-        }
+        .token.comment, .token.prolog, .token.doctype, .token.cdata { color: #6a9955 !important; }
+        .token.punctuation { color: #d4d4d4 !important; }
+        .token.property, .token.tag, .token.boolean, .token.number, .token.constant, .token.symbol, .token.deleted { color: #b5cea8 !important; }
+        .token.selector, .token.attr-name, .token.string, .token.char, .token.builtin, .token.inserted { color: #ce9178 !important; }
+        .token.operator, .token.entity, .token.url, .language-css .token.string, .style .token.string { color: #d4d4d4 !important; }
+        .token.atrule, .token.attr-value, .token.keyword { color: #569cd6 !important; }
+        .token.function, .token.class-name { color: #dcdcaa !important; }
+        .token.regex, .token.important, .token.variable { color: #d16969 !important; }
       `}</style>
     </div>
   );
 };
 
 export default CustomSyntaxHighlighter;
-
