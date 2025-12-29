@@ -29,24 +29,12 @@ function Quizzes() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [isAdmin, setIsAdmin] = useState(false);
+    const [deletingQuizId, setDeletingQuizId] = useState(null);
     const { user } = useUser();
 
     useEffect(() => {
         user && GetAllQuizzes();
-        user && checkAdminStatus();
     }, [user]);
-
-    const checkAdminStatus = async () => {
-        try {
-            const response = await axios.get(`/api/admin/check?email=${user?.primaryEmailAddress?.emailAddress}`);
-            if (response.data.success) {
-                setIsAdmin(response.data.isAdmin);
-            }
-        } catch (error) {
-            console.error('Error checking admin status:', error);
-        }
-    };
 
     useEffect(() => {
         // Filter quizzes based on search query
@@ -86,17 +74,22 @@ function Quizzes() {
     const handleDeleteQuiz = async (quizId) => {
         if (!confirm('Are you sure you want to delete this quiz?')) return;
 
+        setDeletingQuizId(quizId);
         try {
             const result = await axios.delete(`/api/quizzes?quizId=${quizId}`);
             if (result.data.success) {
                 toast.success('Quiz deleted successfully');
-                GetAllQuizzes();
+                setQuizzes(prev => prev.filter(q => q.quizId !== quizId));
+                setFilteredQuizzes(prev => prev.filter(q => q.quizId !== quizId));
             } else {
                 toast.error(result.data.error || 'Failed to delete quiz');
             }
         } catch (error) {
             console.error('Error deleting quiz:', error);
-            toast.error('Failed to delete quiz');
+            const errorMsg = error.response?.data?.error || 'Failed to delete quiz';
+            toast.error(errorMsg);
+        } finally {
+            setDeletingQuizId(null);
         }
     };
 
@@ -279,21 +272,25 @@ function Quizzes() {
                                                 size="sm" 
                                                 className="flex-1"
                                                 onClick={() => {
-                                                    // View quiz details (you can implement a modal or navigate to details page)
                                                     toast.info('Quiz details view coming soon!');
                                                 }}
                                             >
                                                 <Eye className="h-4 w-4 mr-2" />
                                                 View
                                             </Button>
-                                            {isAdmin && (
+                                            {quiz.createdBy === user?.id && (
                                                 <Button 
                                                     variant="outline" 
                                                     size="sm"
                                                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                                     onClick={() => handleDeleteQuiz(quiz.quizId)}
+                                                    disabled={deletingQuizId === quiz.quizId}
                                                 >
-                                                    <Trash2 className="h-4 w-4" />
+                                                    {deletingQuizId === quiz.quizId ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="h-4 w-4" />
+                                                    )}
                                                 </Button>
                                             )}
                                         </div>

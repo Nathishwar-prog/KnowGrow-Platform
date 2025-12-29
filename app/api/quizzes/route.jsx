@@ -1,7 +1,7 @@
 import { quizzesTable } from "../../../config/schema";
 import { db } from "../../../config/db";
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
 
 const serialize = (obj) =>
@@ -37,7 +37,7 @@ export async function POST(req) {
       questionCount,
       quizData,
       userEmail: user.primaryEmailAddress?.emailAddress,
-      createdAt: new Date().toISOString()
+      createdBy: user.id
     }).returning();
 
     return NextResponse.json({
@@ -137,19 +137,29 @@ export async function DELETE(req) {
       );
     }
 
-    // Delete quiz (only if user owns it)
-    const result = await db
-      .delete(quizzesTable)
-      .where(eq(quizzesTable.quizId, quizId))
-      .where(eq(quizzesTable.userEmail, user.primaryEmailAddress?.emailAddress))
-      .returning();
+    const existingQuiz = await db
+      .select()
+      .from(quizzesTable)
+      .where(eq(quizzesTable.quizId, quizId));
 
-    if (result.length === 0) {
+    if (existingQuiz.length === 0) {
       return NextResponse.json(
-        { success: false, error: "Quiz not found or unauthorized" },
+        { success: false, error: "Quiz not found" },
         { status: 404 }
       );
     }
+
+    const quiz = existingQuiz[0];
+    if (quiz.createdBy !== user.id) {
+      return NextResponse.json(
+        { success: false, error: "Forbidden: You are not the owner of this quiz" },
+        { status: 403 }
+      );
+    }
+
+    await db
+      .delete(quizzesTable)
+      .where(eq(quizzesTable.quizId, quizId));
 
     return NextResponse.json({
       success: true,

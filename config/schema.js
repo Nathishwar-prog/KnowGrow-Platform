@@ -41,6 +41,7 @@ export const quizzesTable = pgTable('quizzes', {
   questionCount: integer().notNull(),
   quizData: json().notNull(),
   userEmail: varchar({ length: 255 }).references(() => usersTable.email).notNull(),
+  createdBy: varchar({ length: 255 }),
   createdAt: timestamp().notNull().defaultNow()
 })
 
