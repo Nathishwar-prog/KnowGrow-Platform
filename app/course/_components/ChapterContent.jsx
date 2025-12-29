@@ -9,6 +9,20 @@ import { toast } from "sonner";
 import CodeEnhancer from "./CodeEnhancer";
 import { logActivity } from "../../workspace/_components/ActivityLogger";
 
+function normalizeChapterTitle(chapter, fallbackIndex) {
+    const rawTitle = chapter?.chapterName || 
+                     chapter?.courseData?.chapterName || 
+                     chapter?.rawChapterName || 
+                     '';
+    
+    const cleaned = rawTitle
+        .replace(/^chapter\s*\d+\s*[:\-–]\s*/i, '')
+        .replace(/^\d+\.\s*/, '')
+        .trim();
+    
+    return cleaned || `Chapter ${fallbackIndex + 1}`;
+}
+
 function ChapterContent({ courseInfo, refreshData }) {
     const { courseId } = useParams();
     const enrollCourse = courseInfo?.enrollCourse;
@@ -20,8 +34,13 @@ function ChapterContent({ courseInfo, refreshData }) {
         return courseContent[selectedChapterIndex] || null;
     }, [courseContent, selectedChapterIndex]);
 
+    const chapterId = useMemo(() => {
+        return currentChapter?.chapterId || `chapter-${selectedChapterIndex}`;
+    }, [currentChapter, selectedChapterIndex]);
+
     const videoData = useMemo(() => {
-        return currentChapter?.youtubeVideo || [];
+        const videos = currentChapter?.youtubeVideo || [];
+        return videos.slice(0, 2);
     }, [currentChapter]);
 
     const topics = useMemo(() => {
@@ -29,9 +48,7 @@ function ChapterContent({ courseInfo, refreshData }) {
     }, [currentChapter]);
 
     const chapterName = useMemo(() => {
-        return currentChapter?.chapterName || 
-               currentChapter?.courseData?.chapterName || 
-               `Chapter ${selectedChapterIndex + 1}`;
+        return normalizeChapterTitle(currentChapter, selectedChapterIndex);
     }, [currentChapter, selectedChapterIndex]);
 
     let completedChapter = enrollCourse?.completedChapters ?? [];
@@ -100,18 +117,18 @@ function ChapterContent({ courseInfo, refreshData }) {
             </div>
 
             <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 mb-6">
-                <span>⏱️ ~{readingTime} min read</span>
+                <span>~{readingTime} min read</span>
                 {videoData.length > 0 && (
-                    <span className="ml-2">📺 {videoData.length} videos available</span>
+                    <span className="ml-2">{videoData.length} video{videoData.length !== 1 ? 's' : ''} available</span>
                 )}
             </div>
 
             {videoData.length > 0 && (
                 <>
-                    <h2 className='my-2 font-bold text-lg'>Related Videos 📽️</h2>
+                    <h2 className='my-2 font-bold text-lg'>Related Videos</h2>
                     <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
-                        {videoData.slice(0, 2).map((video, index) => (
-                            <div key={`${currentChapter?.chapterId || selectedChapterIndex}-video-${index}`} className="video-container">
+                        {videoData.map((video, index) => (
+                            <div key={`${chapterId}-video-${video?.videoId || index}`} className="video-container">
                                 {video?.videoId ? (
                                     <div className="video-responsive">
                                         <YouTube
@@ -165,16 +182,16 @@ function ChapterContent({ courseInfo, refreshData }) {
             <div className='mt-7'>
                 {topics.length > 0 ? (
                     topics.map((topic, index) => (
-                        <div key={`${currentChapter?.chapterId || selectedChapterIndex}-topic-${index}`} className='mt-10 p-5 bg-secondary rounded-2xl'>
+                        <div key={`${chapterId}-topic-${index}`} className='mt-10 p-5 bg-secondary rounded-2xl'>
                             <h2 className='font-bold text-2xl text-primary'>
                                 {index + 1}. {topic?.topic}
                             </h2>
-                            <div id={`chapter-content-${selectedChapterIndex}-${index}`}
+                            <div id={`chapter-content-${chapterId}-${index}`}
                                 className='prose prose-emerald dark:prose-invert max-w-none'
                                 dangerouslySetInnerHTML={{ __html: topic?.content }}
                                 style={{ lineHeight: '2.1' }}
                             />
-                            <CodeEnhancer containerId={`chapter-content-${selectedChapterIndex}-${index}`} />
+                            <CodeEnhancer containerId={`chapter-content-${chapterId}-${index}`} />
                         </div>
                     ))
                 ) : (

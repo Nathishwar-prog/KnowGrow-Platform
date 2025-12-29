@@ -7,6 +7,33 @@ import {
 } from "../../../@/components/ui/accordion";
 import { SelectedChapterIndexContext } from "../../../context/SelectedChapterIndexContext";
 
+function normalizeChapterTitle(chapter, fallbackIndex) {
+  const rawTitle = chapter?.chapterName || 
+                   chapter?.courseData?.chapterName || 
+                   chapter?.rawChapterName || 
+                   '';
+  
+  const cleaned = rawTitle
+    .replace(/^chapter\s*\d+\s*[:\-–]\s*/i, '')
+    .replace(/^\d+\.\s*/, '')
+    .trim();
+  
+  return cleaned || `Chapter ${fallbackIndex + 1}`;
+}
+
+function getChapterSubTopics(chapter) {
+  if (chapter?.subTopics && Array.isArray(chapter.subTopics) && chapter.subTopics.length > 0) {
+    return chapter.subTopics;
+  }
+  
+  const courseDataTopics = chapter?.courseData?.topics;
+  if (courseDataTopics && Array.isArray(courseDataTopics)) {
+    return courseDataTopics;
+  }
+  
+  return [];
+}
+
 function ChapterListSidebar({ courseInfo }) {
   const course = courseInfo?.courses;
   const enrollCourse = courseInfo?.enrollCourse;
@@ -16,31 +43,28 @@ function ChapterListSidebar({ courseInfo }) {
   );
   let completedChapter = enrollCourse?.completedChapters ?? [];
 
-  const chaptersWithIds = useMemo(() => {
+  const chaptersWithData = useMemo(() => {
     if (!courseContent || !Array.isArray(courseContent)) return [];
-    return courseContent.map((chapter, index) => ({
-      ...chapter,
-      uniqueKey: chapter?.chapterId || `chapter-${index}`,
-      displayIndex: chapter?.orderIndex ?? index
-    }));
+    
+    return courseContent
+      .map((chapter, index) => {
+        const orderIndex = chapter?.orderIndex ?? index;
+        return {
+          ...chapter,
+          uniqueKey: chapter?.chapterId || `chapter-${index}`,
+          displayIndex: orderIndex,
+          normalizedTitle: normalizeChapterTitle(chapter, index),
+          chapterSubTopics: getChapterSubTopics(chapter),
+          originalIndex: index
+        };
+      })
+      .sort((a, b) => a.displayIndex - b.displayIndex);
   }, [courseContent]);
-
-  const getChapterName = (chapter, index) => {
-    return chapter?.chapterName || 
-           chapter?.courseData?.chapterName || 
-           course?.courseJson?.chapters?.[index]?.chapterName ||
-           course?.courseJson?.chapters?.[index]?.name ||
-           `Chapter ${index + 1}`;
-  };
-
-  const getChapterTopics = (chapter) => {
-    return chapter?.courseData?.topics || [];
-  };
 
   return (
     <div className="w-80 h-full p-0 overflow-hidden">
       <div className="bg-gradient-to-b from-emerald-600 to-emerald-700 text-white p-5">
-        <h2 className="my-1 font-bold text-xl">Chapters ({chaptersWithIds.length})</h2>
+        <h2 className="my-1 font-bold text-xl">Chapters ({chaptersWithData.length})</h2>
         <p className="text-emerald-100 text-xs">Follow step-by-step; completed chapters are highlighted.</p>
       </div>
       <div className="h-[calc(100%-84px)] overflow-y-auto p-5 bg-secondary dark:bg-[color:oklch(0.18_0.03_150)]">
@@ -49,17 +73,16 @@ function ChapterListSidebar({ courseInfo }) {
           <span className="text-xs text-emerald-700 dark:text-emerald-300">Interactive Syllabus</span>
         </div>
         <Accordion type="single" collapsible>
-          {chaptersWithIds.map((chapter, index) => {
-            const chapterName = getChapterName(chapter, index);
-            const topics = getChapterTopics(chapter);
-            const isSelected = selectedChapterIndex === index;
-            const isCompleted = completedChapter.includes(index);
+          {chaptersWithData.map((chapter) => {
+            const { uniqueKey, originalIndex, normalizedTitle, chapterSubTopics } = chapter;
+            const isSelected = selectedChapterIndex === originalIndex;
+            const isCompleted = completedChapter.includes(originalIndex);
 
             return (
               <AccordionItem
-                value={chapter.uniqueKey}
-                key={chapter.uniqueKey}
-                onClick={() => setSelectedChapterIndex(index)}
+                value={uniqueKey}
+                key={uniqueKey}
+                onClick={() => setSelectedChapterIndex(originalIndex)}
               >
                 <AccordionTrigger
                   className={`text-sm font-medium rounded-md px-3 py-2 border transition-colors ${
@@ -67,26 +90,34 @@ function ChapterListSidebar({ courseInfo }) {
                       ? "bg-white text-emerald-800 border-emerald-300"
                       : "bg-card hover:bg-emerald-50 border-transparent"
                   } ${isCompleted ? 'ring-1 ring-emerald-300' : ''}`}
-                  onClick={() => setSelectedChapterIndex(index)}
+                  onClick={() => setSelectedChapterIndex(originalIndex)}
                 >
-                  {index + 1}. {chapterName}
+                  {originalIndex + 1}. {normalizedTitle}
                 </AccordionTrigger>
 
                 <AccordionContent asChild>
                   <div className="">
-                    {topics.length > 0 ? (
-                      topics.map((topic, topicIndex) => (
-                        <h2 
-                          key={`${chapter.uniqueKey}-topic-${topicIndex}`}
-                          className={`p-2 my-1 rounded-lg transition-colors border
-                            ${isCompleted 
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                              : 'bg-white dark:bg-[color:oklch(0.21_0.03_150)] border-transparent text-foreground'
-                            }`}
-                        >
-                          {topic?.topic}
-                        </h2>
-                      ))
+                    {chapterSubTopics.length > 0 ? (
+                      chapterSubTopics.map((topic, topicIndex) => {
+                        const topicText = typeof topic === 'string' 
+                          ? topic 
+                          : topic?.topic || topic?.name || '';
+                        
+                        if (!topicText) return null;
+                        
+                        return (
+                          <h2 
+                            key={`${uniqueKey}-topic-${topicIndex}`}
+                            className={`p-2 my-1 rounded-lg transition-colors border
+                              ${isCompleted 
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                : 'bg-white dark:bg-[color:oklch(0.21_0.03_150)] border-transparent text-foreground'
+                              }`}
+                          >
+                            {topicText}
+                          </h2>
+                        );
+                      })
                     ) : (
                       <p className="p-2 text-sm text-muted-foreground">No topics available</p>
                     )}
