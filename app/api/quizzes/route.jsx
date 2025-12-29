@@ -17,18 +17,19 @@ export async function POST(req) {
       );
     }
 
-    const { quizId, title, description, topic, difficulty, questionCount, quizData } = await req.json();
+    const body = await req.json();
+    const { quizId, title, description, topic, difficulty, questionCount, quizData } = body;
 
     // Validate required fields
     if (!quizId || !title || !topic || !difficulty || !questionCount || !quizData) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        { success: false, error: "Missing required fields: quizId, title, topic, difficulty, questionCount, and quizData are mandatory" },
         { status: 400 }
       );
     }
 
     // Save quiz to database
-    const result = await db.insert(quizzesTable).values({
+    await db.insert(quizzesTable).values({
       quizId,
       title,
       description: description || "",
@@ -38,12 +39,10 @@ export async function POST(req) {
       quizData,
       userEmail: user.primaryEmailAddress?.emailAddress,
       createdBy: user.id
-    }).returning();
+    });
 
     return NextResponse.json({
-      success: true,
-      quiz: serialize(result[0]),
-      message: "Quiz saved successfully"
+      success: true
     });
 
   } catch (error) {
@@ -51,8 +50,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to save quiz",
-        details: error.message
+        error: "Internal server error"
       },
       { status: 500 }
     );
@@ -92,16 +90,15 @@ export async function GET(req) {
       });
     }
 
-    // Fetch all quizzes (from all users)
+    // Fetch all quizzes
     const result = await db
       .select()
       .from(quizzesTable)
-      .orderBy(desc(quizzesTable.id));
+      .orderBy(desc(quizzesTable.createdAt));
 
     return NextResponse.json({
       success: true,
-      quizzes: serialize(result),
-      count: result.length
+      quizzes: serialize(result)
     });
 
   } catch (error) {
@@ -109,8 +106,7 @@ export async function GET(req) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to fetch quizzes",
-        details: error.message
+        error: "Internal server error"
       },
       { status: 500 }
     );
@@ -137,33 +133,40 @@ export async function DELETE(req) {
       );
     }
 
-    const existingQuiz = await db
+    const result = await db
       .select()
       .from(quizzesTable)
       .where(eq(quizzesTable.quizId, quizId));
 
-    if (existingQuiz.length === 0) {
+    if (result.length === 0) {
       return NextResponse.json(
         { success: false, error: "Quiz not found" },
         { status: 404 }
       );
     }
 
-    const quiz = existingQuiz[0];
+    const quiz = result[0];
+
+    // Ownership check
     if (quiz.createdBy !== user.id) {
       return NextResponse.json(
-        { success: false, error: "Forbidden: You are not the owner of this quiz" },
+        { success: false, error: "Forbidden: You do not own this quiz" },
         { status: 403 }
       );
     }
 
+    // Secure delete with ownership check in WHERE clause as well for defense in depth
     await db
       .delete(quizzesTable)
-      .where(eq(quizzesTable.quizId, quizId));
+      .where(
+        and(
+          eq(quizzesTable.quizId, quizId),
+          eq(quizzesTable.createdBy, user.id)
+        )
+      );
 
     return NextResponse.json({
-      success: true,
-      message: "Quiz deleted successfully"
+      success: true
     });
 
   } catch (error) {
@@ -171,11 +174,9 @@ export async function DELETE(req) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to delete quiz",
-        details: error.message
+        error: "Internal server error"
       },
       { status: 500 }
     );
   }
 }
-

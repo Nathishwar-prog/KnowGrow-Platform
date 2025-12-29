@@ -1,4 +1,4 @@
-import { boolean, integer, json, pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, json, pgTable, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -32,7 +32,7 @@ export const enrollCourseTable = pgTable('enrollCourse',{
 })
 
 export const quizzesTable = pgTable('quizzes', {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  id: uuid().primaryKey().defaultRandom(),
   quizId: varchar({ length: 255 }).notNull().unique(),
   title: varchar({ length: 500 }).notNull(),
   description: varchar({ length: 1000 }),

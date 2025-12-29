@@ -70,8 +70,8 @@ const QuizGenerateAI = ({ isOpen, onClose }) => {
         },
         body: JSON.stringify({
           quizId,
-          title: quiz.title,
-          description: quiz.description,
+          title: quiz.title || formData.topic,
+          description: quiz.description || "",
           topic: formData.topic,
           difficulty: formData.difficulty,
           questionCount: quiz.totalQuestions || quiz.questions.length,
@@ -81,14 +81,17 @@ const QuizGenerateAI = ({ isOpen, onClose }) => {
 
       const data = await response.json();
       
-      if (data.success) {
+      if (response.ok && data.success) {
         console.log('Quiz saved to database successfully');
       } else {
-        console.error('Failed to save quiz to database:', data.error);
+        const errorMsg = data.error || 'Failed to save quiz to database';
+        console.error('Quiz save error:', errorMsg);
+        // Optionally notify user via a non-intrusive way if needed, 
+        // but the prompt says "Don't show error to user, just log it" was already there.
+        // However, I'll ensure it logs clearly.
       }
     } catch (error) {
-      console.error('Error saving quiz to database:', error);
-      // Don't show error to user, just log it
+      console.error('Network or Server Error saving quiz:', error);
     }
   };
 

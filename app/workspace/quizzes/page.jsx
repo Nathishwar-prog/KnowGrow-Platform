@@ -76,13 +76,15 @@ function Quizzes() {
 
         setDeletingQuizId(quizId);
         try {
-            const result = await axios.delete(`/api/quizzes?quizId=${quizId}`);
-            if (result.data.success) {
+            const response = await axios.delete(`/api/quizzes?quizId=${quizId}`);
+            const data = response.data;
+            
+            if (data.success) {
                 toast.success('Quiz deleted successfully');
                 setQuizzes(prev => prev.filter(q => q.quizId !== quizId));
                 setFilteredQuizzes(prev => prev.filter(q => q.quizId !== quizId));
             } else {
-                toast.error(result.data.error || 'Failed to delete quiz');
+                toast.error(data.error || 'Failed to delete quiz');
             }
         } catch (error) {
             console.error('Error deleting quiz:', error);
