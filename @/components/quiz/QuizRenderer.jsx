@@ -13,46 +13,11 @@ import {
     Award,
     Code2,
     Copy,
-    Check
+    Check,
+    ChevronRight,
+    Trophy
 } from "lucide-react";
-
-const CodeBlock = ({ code, language = 'javascript' }) => {
-    const [copied, setCopied] = useState(false);
-
-    const copyCode = async () => {
-        try {
-            await navigator.clipboard.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch (err) {
-            console.error('Failed to copy code');
-        }
-    };
-
-    return (
-        <div className="relative group">
-            <div className="absolute top-2 right-2 z-10">
-                <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={copyCode}
-                    className="h-8 w-8 p-0 bg-slate-700 hover:bg-slate-600"
-                >
-                    {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3 text-slate-300" />}
-                </Button>
-            </div>
-            <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
-                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-slate-700">
-                    <Code2 className="h-4 w-4 text-blue-400" />
-                    <span className="text-xs text-slate-400 font-mono">{language}</span>
-                </div>
-                <pre className="text-sm">
-                    <code className="text-slate-100 font-mono">{code}</code>
-                </pre>
-            </div>
-        </div>
-    );
-};
+import MarkdownRenderer from "../../../app/workspace/_components/MarkdownRenderer";
 
 const getQuestionIcon = (type) => {
     const icons = {
@@ -69,15 +34,15 @@ const getQuestionIcon = (type) => {
 const getDifficultyConfig = (difficulty) => {
     const configs = {
         'easy': { 
-            color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800',
+            color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
             icon: '🌱'
         },
         'medium': { 
-            color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800',
+            color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
             icon: '⚡'
         },
         'hard': { 
-            color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800',
+            color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
             icon: '🔥'
         }
     };
@@ -151,10 +116,10 @@ export function QuizRenderer({
     };
 
     const getScoreMessage = (percentage) => {
-        if (percentage >= 90) return { text: "Outstanding! 🎉", color: "text-green-500" };
-        if (percentage >= 70) return { text: "Great Job! 🌟", color: "text-blue-500" };
-        if (percentage >= 50) return { text: "Good Effort! 💪", color: "text-yellow-500" };
-        return { text: "Keep Learning! 📚", color: "text-orange-500" };
+        if (percentage >= 90) return { text: "Elite Achievement! 🏆", color: "text-emerald-500" };
+        if (percentage >= 70) return { text: "Strong Performance! 🚀", color: "text-primary" };
+        if (percentage >= 50) return { text: "Solid Foundation! 💪", color: "text-amber-500" };
+        return { text: "Keep Pushing! 📚", color: "text-rose-500" };
     };
 
     const score = calculateScore();
@@ -193,44 +158,51 @@ export function QuizRenderer({
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-12">
             {submitted && (
-                <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-950/30 animate-in fade-in slide-in-from-top-4 duration-500">
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="bg-green-100 dark:bg-green-900/50 p-4 rounded-full mb-4">
-                                <Award className="h-12 w-12 text-green-600 dark:text-green-400" />
+                <div className="animate-in fade-in slide-in-from-top-12 duration-1000">
+                    <div className="relative overflow-hidden rounded-[40px] bg-gradient-to-br from-primary/10 via-background to-background p-12 border-2 border-primary/20 shadow-2xl">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
+                        
+                        <div className="relative z-10 flex flex-col items-center text-center">
+                            <div className="w-24 h-24 rounded-[32px] bg-primary/20 flex items-center justify-center mb-8 shadow-inner border border-primary/30 transform hover:rotate-12 transition-transform duration-500">
+                                <Trophy className="h-12 w-12 text-primary" />
                             </div>
-                            <h3 className={`text-3xl font-bold ${scoreMessage.color}`}>
+                            
+                            <h3 className={`text-5xl font-black tracking-tighter mb-4 ${scoreMessage.color}`}>
                                 {scoreMessage.text}
                             </h3>
-                            <p className="text-xl text-green-700 dark:text-green-300 mb-4 mt-2">
-                                You scored <span className="font-extrabold text-4xl mx-2">{score.correct}</span> out of <span className="font-bold">{score.total}</span>
-                            </p>
-                            <div className="w-full max-w-md bg-green-200 dark:bg-green-900 rounded-full h-4 mb-6">
+                            
+                            <div className="flex items-baseline gap-3 mb-8">
+                                <span className="text-7xl font-black text-foreground">{score.percentage}%</span>
+                                <span className="text-2xl font-black text-muted-foreground uppercase tracking-widest">Accuracy</span>
+                            </div>
+
+                            <div className="w-full max-w-xl bg-muted/50 rounded-full h-4 mb-10 overflow-hidden border border-border/50">
                                 <div 
-                                    className="bg-green-600 h-4 rounded-full transition-all duration-1000" 
+                                    className="bg-primary h-full rounded-full transition-all duration-1000 ease-out" 
                                     style={{ width: `${score.percentage}%` }}
                                 />
                             </div>
-                            <div className="text-center mb-4">
-                                <div className="text-5xl font-bold text-primary">{score.percentage}%</div>
-                                <div className="text-sm text-muted-foreground mt-1">Score</div>
-                            </div>
+
+                            <p className="text-2xl font-bold text-muted-foreground mb-12">
+                                You mastered <span className="text-foreground font-black">{score.correct}</span> out of <span className="text-foreground font-black">{score.total}</span> concepts
+                            </p>
+
                             <Button 
-                                variant="outline" 
+                                size="lg"
                                 onClick={handleRetake}
-                                className="bg-white hover:bg-green-100 border-green-300 text-green-800 font-bold dark:bg-green-950 dark:hover:bg-green-900 dark:text-green-300"
+                                className="h-16 px-12 rounded-3xl bg-primary text-primary-foreground font-black text-lg uppercase tracking-widest shadow-2xl shadow-primary/40 transition-all hover:scale-105 active:scale-95"
                             >
-                                <Target className="h-4 w-4 mr-2" />
-                                Retake Quiz
+                                <Target className="h-6 w-6 mr-3" />
+                                Retake Challenge
                             </Button>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             )}
 
-            <div className="space-y-6">
+            <div className="space-y-10">
                 {questions.map((question, index) => {
                     const questionId = question.id || index;
                     const iconData = getQuestionIcon(getQuestionType(question));
@@ -240,253 +212,221 @@ export function QuizRenderer({
                     const options = normalizeOptions(question);
 
                     return (
-                        <Card key={questionId} className={`border-2 transition-all duration-300 hover:shadow-lg ${
-                            submitted 
-                                ? (isCorrect ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-red-500/50 bg-red-50/50 dark:bg-red-950/20') 
-                                : 'hover:border-primary/50'
-                        }`}>
-                            <CardHeader className="pb-4">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex items-start gap-3 flex-1">
-                                        <div className={`p-3 ${iconData.bg} rounded-xl`}>
-                                            <span className="text-2xl">{iconData.icon}</span>
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <CardTitle className="text-lg font-bold">
-                                                    Question {index + 1}
-                                                </CardTitle>
-                                                {submitted && (
-                                                    isCorrect ? 
-                                                        <CheckCircle className="h-5 w-5 text-green-500" /> : 
-                                                        <XCircle className="h-5 w-5 text-red-500" />
-                                                )}
+                        <div key={questionId} className={`group relative animate-in slide-in-from-bottom-8 fade-in duration-700 [animation-delay:${index * 100}ms]`}>
+                            <div className={`absolute -inset-0.5 rounded-[40px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-primary/30 via-transparent to-primary/30 blur-2xl ${submitted ? (isCorrect ? 'from-emerald-500/20' : 'from-rose-500/20') : ''}`} />
+                            
+                            <Card className={`relative border-2 transition-all duration-500 rounded-[40px] overflow-hidden ${
+                                submitted 
+                                    ? (isCorrect ? 'border-emerald-500/30 bg-emerald-500/[0.02]' : 'border-rose-500/30 bg-rose-500/[0.02]') 
+                                    : 'border-border/60 hover:border-primary/40 bg-card/40 backdrop-blur-sm'
+                            }`}>
+                                <CardHeader className="p-10 pb-6">
+                                    <div className="flex items-start justify-between gap-6">
+                                        <div className="flex items-start gap-6 flex-1">
+                                            <div className={`w-16 h-16 rounded-2xl ${iconData.bg} flex items-center justify-center flex-shrink-0 shadow-inner border border-black/5`}>
+                                                <span className="text-3xl">{iconData.icon}</span>
                                             </div>
-                                            <CardDescription className="text-base font-medium text-foreground">
-                                                {question.question}
-                                            </CardDescription>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-4 mb-3">
+                                                    <span className="text-[11px] font-black text-primary uppercase tracking-[0.3em]">Module {index + 1}</span>
+                                                    {submitted && (
+                                                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${isCorrect ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-rose-500/10 text-rose-600 border-rose-500/20'}`}>
+                                                            {isCorrect ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                                            {isCorrect ? 'Validated' : 'Incorrect'}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-2xl font-black text-foreground tracking-tight leading-tight">
+                                                    <MarkdownRenderer content={question.question} />
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    {question.difficulty && (
-                                        <Badge className={`${difficultyData.color} px-3 py-1 font-semibold`}>
-                                            {difficultyData.icon} {question.difficulty}
-                                        </Badge>
-                                    )}
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {(questionType === 'multiple_choice' || questionType === 'true_false') && options.length > 0 && (
-                                    <div className="space-y-3">
-                                        {Array.isArray(question.options) ? (
-                                            question.options.map((option, optionIndex) => {
-                                                const optionLetter = String.fromCharCode(65 + optionIndex);
-                                                const isSelected = userAnswers[questionId] === option;
-                                                const isCorrectOption = submitted && option === question.correctAnswer;
-                                                const isWrongSelected = submitted && isSelected && !isCorrectOption;
-
-                                                return (
-                                                    <label 
-                                                        key={optionIndex} 
-                                                        className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                                                            submitted 
-                                                                ? isCorrectOption 
-                                                                    ? 'border-green-500 bg-green-50 dark:bg-green-950/30' 
-                                                                    : isWrongSelected 
-                                                                        ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
-                                                                        : 'border-border bg-muted/30'
-                                                                : isSelected
-                                                                    ? 'border-primary bg-primary/10 shadow-md'
-                                                                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                                                        } ${submitted ? 'cursor-default' : ''}`}
-                                                    >
-                                                        <input
-                                                            type="radio"
-                                                            name={`question-${questionId}`}
-                                                            value={option}
-                                                            checked={isSelected}
-                                                            onChange={(e) => handleAnswerChange(questionId, e.target.value)}
-                                                            disabled={submitted}
-                                                            className="w-5 h-5 accent-primary"
-                                                        />
-                                                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
-                                                            submitted && isCorrectOption
-                                                                ? 'bg-green-500 text-white'
-                                                                : isSelected
-                                                                    ? 'bg-primary text-primary-foreground'
-                                                                    : 'bg-muted text-muted-foreground'
-                                                        }`}>
-                                                            {optionLetter}
-                                                        </div>
-                                                        <span className="flex-1 font-medium">{option}</span>
-                                                        {submitted && isCorrectOption && (
-                                                            <CheckCircle className="h-5 w-5 text-green-500" />
-                                                        )}
-                                                        {submitted && isWrongSelected && (
-                                                            <XCircle className="h-5 w-5 text-red-500" />
-                                                        )}
-                                                    </label>
-                                                );
-                                            })
-                                        ) : (
-                                            Object.entries(question.options).map(([key, value]) => {
-                                                const isSelected = userAnswers[questionId] === key;
-                                                const isCorrectOption = submitted && key === question.correctAnswer;
-                                                const isWrongSelected = submitted && isSelected && !isCorrectOption;
-
-                                                return (
-                                                    <label 
-                                                        key={key} 
-                                                        className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                                                            submitted 
-                                                                ? isCorrectOption 
-                                                                    ? 'border-green-500 bg-green-50 dark:bg-green-950/30' 
-                                                                    : isWrongSelected 
-                                                                        ? 'border-red-500 bg-red-50 dark:bg-red-950/30'
-                                                                        : 'border-border bg-muted/30'
-                                                                : isSelected
-                                                                    ? 'border-primary bg-primary/10 shadow-md'
-                                                                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                                                        } ${submitted ? 'cursor-default' : ''}`}
-                                                    >
-                                                        <input
-                                                            type="radio"
-                                                            name={`question-${questionId}`}
-                                                            value={key}
-                                                            checked={isSelected}
-                                                            onChange={(e) => handleAnswerChange(questionId, e.target.value)}
-                                                            disabled={submitted}
-                                                            className="w-5 h-5 accent-primary"
-                                                        />
-                                                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
-                                                            submitted && isCorrectOption
-                                                                ? 'bg-green-500 text-white'
-                                                                : isSelected
-                                                                    ? 'bg-primary text-primary-foreground'
-                                                                    : 'bg-muted text-muted-foreground'
-                                                        }`}>
-                                                            {key}
-                                                        </div>
-                                                        <span className="flex-1 font-medium">{value}</span>
-                                                        {submitted && isCorrectOption && (
-                                                            <CheckCircle className="h-5 w-5 text-green-500" />
-                                                        )}
-                                                        {submitted && isWrongSelected && (
-                                                            <XCircle className="h-5 w-5 text-red-500" />
-                                                        )}
-                                                    </label>
-                                                );
-                                            })
+                                        {question.difficulty && (
+                                            <Badge variant="outline" className={`rounded-2xl px-5 py-2 text-[10px] font-black uppercase tracking-widest border-2 ${difficultyData.color}`}>
+                                                {difficultyData.icon} {question.difficulty}
+                                            </Badge>
                                         )}
                                     </div>
-                                )}
+                                </CardHeader>
 
-                                {(questionType === 'short_answer' || questionType === 'fill_blank' || questionType === 'code') && (
-                                    <div className="space-y-2">
-                                        <Input
-                                            placeholder={questionType === 'code' ? "Write your code answer..." : "Type your answer here..."}
-                                            value={userAnswers[questionId] || ''}
-                                            onChange={(e) => handleTextChange(questionId, e.target.value)}
-                                            disabled={submitted}
-                                            className={`h-12 text-base border-2 ${questionType === 'code' ? 'font-mono' : ''}`}
-                                        />
-                                    </div>
-                                )}
+                                <CardContent className="p-10 pt-0 space-y-8">
+                                    {(questionType === 'multiple_choice' || questionType === 'true_false') && options.length > 0 && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            {Array.isArray(question.options) ? (
+                                                question.options.map((option, optionIndex) => {
+                                                    const optionLetter = String.fromCharCode(65 + optionIndex);
+                                                    const isSelected = userAnswers[questionId] === option;
+                                                    const isCorrectOption = submitted && option === question.correctAnswer;
+                                                    const isWrongSelected = submitted && isSelected && !isCorrectOption;
 
-                                {question.codeExample && (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                                            <Code2 className="h-4 w-4" />
-                                            Code Example:
-                                        </div>
-                                        <CodeBlock code={question.codeExample} />
-                                    </div>
-                                )}
-
-                                {submitted && (
-                                    <div className={`mt-4 p-6 rounded-xl border-2 space-y-4 ${
-                                        isCorrect 
-                                            ? 'bg-green-50 dark:bg-green-950/30 border-green-500' 
-                                            : 'bg-red-50 dark:bg-red-950/30 border-red-500'
-                                    }`}>
-                                        <div className="flex items-center gap-3">
-                                            {isCorrect ? (
-                                                <>
-                                                    <CheckCircle className="h-6 w-6 text-green-500" />
-                                                    <span className="font-bold text-lg text-green-700 dark:text-green-400">
-                                                        Correct! Well done! 🎉
-                                                    </span>
-                                                </>
+                                                    return (
+                                                        <label 
+                                                            key={optionIndex} 
+                                                            className={`group/opt flex items-center gap-5 p-6 rounded-[32px] border-2 cursor-pointer transition-all duration-300 relative overflow-hidden ${
+                                                                submitted 
+                                                                    ? isCorrectOption 
+                                                                        ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)]' 
+                                                                        : isWrongSelected 
+                                                                            ? 'border-rose-500 bg-rose-500/10'
+                                                                            : 'border-border/40 bg-muted/20 opacity-60'
+                                                                    : isSelected
+                                                                        ? 'border-primary bg-primary/10 shadow-[0_20px_40px_-12px_rgba(var(--primary),0.2)] scale-[1.02]'
+                                                                        : 'border-border/60 hover:border-primary/30 hover:bg-muted/40 hover:-translate-y-1'
+                                                            } ${submitted ? 'cursor-default' : ''}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`question-${questionId}`}
+                                                                value={option}
+                                                                checked={isSelected}
+                                                                onChange={(e) => handleAnswerChange(questionId, e.target.value)}
+                                                                disabled={submitted}
+                                                                className="hidden"
+                                                            />
+                                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all duration-300 ${
+                                                                submitted && isCorrectOption
+                                                                    ? 'bg-emerald-500 text-white'
+                                                                    : isSelected
+                                                                        ? 'bg-primary text-primary-foreground'
+                                                                        : 'bg-muted/80 text-muted-foreground group-hover/opt:bg-primary/20 group-hover/opt:text-primary'
+                                                            }`}>
+                                                                {optionLetter}
+                                                            </div>
+                                                            <span className="flex-1 font-bold text-lg tracking-tight">{option}</span>
+                                                            
+                                                            {submitted && isCorrectOption && <CheckCircle className="h-6 w-6 text-emerald-500 animate-in zoom-in duration-300" />}
+                                                            {submitted && isWrongSelected && <XCircle className="h-6 w-6 text-rose-500 animate-in zoom-in duration-300" />}
+                                                        </label>
+                                                    );
+                                                })
                                             ) : (
-                                                <>
-                                                    <XCircle className="h-6 w-6 text-red-500" />
-                                                    <span className="font-bold text-lg text-red-700 dark:text-red-400">
-                                                        Not quite right
-                                                    </span>
-                                                </>
+                                                Object.entries(question.options).map(([key, value]) => {
+                                                    const isSelected = userAnswers[questionId] === key;
+                                                    const isCorrectOption = submitted && key === question.correctAnswer;
+                                                    const isWrongSelected = submitted && isSelected && !isCorrectOption;
+
+                                                    return (
+                                                        <label 
+                                                            key={key} 
+                                                            className={`group/opt flex items-center gap-5 p-6 rounded-[32px] border-2 cursor-pointer transition-all duration-300 relative overflow-hidden ${
+                                                                submitted 
+                                                                    ? isCorrectOption 
+                                                                        ? 'border-emerald-500 bg-emerald-500/10 shadow-[0_0_40px_-10px_rgba(16,185,129,0.3)]' 
+                                                                        : isWrongSelected 
+                                                                            ? 'border-rose-500 bg-rose-500/10'
+                                                                            : 'border-border/40 bg-muted/20 opacity-60'
+                                                                    : isSelected
+                                                                        ? 'border-primary bg-primary/10 shadow-[0_20px_40px_-12px_rgba(var(--primary),0.2)] scale-[1.02]'
+                                                                        : 'border-border/60 hover:border-primary/30 hover:bg-muted/40 hover:-translate-y-1'
+                                                            } ${submitted ? 'cursor-default' : ''}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name={`question-${questionId}`}
+                                                                value={key}
+                                                                checked={isSelected}
+                                                                onChange={(e) => handleAnswerChange(questionId, e.target.value)}
+                                                                disabled={submitted}
+                                                                className="hidden"
+                                                            />
+                                                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm transition-all duration-300 ${
+                                                                submitted && isCorrectOption
+                                                                    ? 'bg-emerald-500 text-white'
+                                                                    : isSelected
+                                                                        ? 'bg-primary text-primary-foreground'
+                                                                        : 'bg-muted/80 text-muted-foreground group-hover/opt:bg-primary/20 group-hover/opt:text-primary'
+                                                            }`}>
+                                                                {key}
+                                                            </div>
+                                                            <span className="flex-1 font-bold text-lg tracking-tight">{value}</span>
+                                                        </label>
+                                                    );
+                                                })
                                             )}
                                         </div>
-                                        
-                                        {!isCorrect && userAnswers[questionId] && (
-                                            <div className="bg-white/50 dark:bg-black/20 p-3 rounded-lg">
-                                                <div className="text-sm font-semibold text-muted-foreground mb-1">Your Answer:</div>
-                                                <div className="font-medium">{userAnswers[questionId]}</div>
-                                            </div>
-                                        )}
+                                    )}
 
-                                        <div className="bg-white/50 dark:bg-black/20 p-3 rounded-lg">
-                                            <div className="text-sm font-semibold text-muted-foreground mb-1">Correct Answer:</div>
-                                            <div className="font-bold text-green-600 dark:text-green-400">
-                                                {question.correctAnswer}
+                                    {(questionType === 'short_answer' || questionType === 'fill_blank' || questionType === 'code') && (
+                                        <div className="relative group/input">
+                                            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/5 rounded-[28px] blur opacity-0 group-focus-within/input:opacity-100 transition-opacity" />
+                                            <Input
+                                                placeholder={questionType === 'code' ? "Implement your logic here..." : "Analyze and provide your insight..."}
+                                                value={userAnswers[questionId] || ''}
+                                                onChange={(e) => handleTextChange(questionId, e.target.value)}
+                                                disabled={submitted}
+                                                className={`relative h-20 px-8 text-xl border-2 rounded-[24px] bg-background/50 backdrop-blur-sm transition-all duration-300 focus:border-primary/50 focus:ring-0 font-bold tracking-tight ${questionType === 'code' ? 'font-mono' : ''}`}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {submitted && (
+                                        <div className="animate-in slide-in-from-top-4 duration-700 space-y-6">
+                                            <div className={`p-8 rounded-[32px] border-2 space-y-6 ${
+                                                isCorrect 
+                                                    ? 'bg-emerald-500/5 border-emerald-500/20' 
+                                                    : 'bg-rose-500/5 border-rose-500/20'
+                                            }`}>
+                                                <div className="flex items-center gap-4">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isCorrect ? 'bg-emerald-500/20 text-emerald-600' : 'bg-rose-500/20 text-rose-600'}`}>
+                                                        {isCorrect ? <CheckCircle className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+                                                    </div>
+                                                    <div>
+                                                        <span className={`text-[11px] font-black uppercase tracking-[0.2em] block mb-1 ${isCorrect ? 'text-emerald-600' : 'text-rose-600'}`}>System Feedback</span>
+                                                        <span className="text-xl font-black">{isCorrect ? 'Absolute Precision! 🎉' : 'Conceptual Divergence Found'}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="bg-background/40 p-5 rounded-2xl border border-border/50">
+                                                        <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest block mb-2">Your Answer</span>
+                                                        <p className="font-bold text-lg">{userAnswers[questionId] || 'No input detected'}</p>
+                                                    </div>
+                                                    <div className="bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/20">
+                                                        <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-2">Expected Logic</span>
+                                                        <p className="font-black text-lg text-emerald-700 dark:text-emerald-400">{question.correctAnswer}</p>
+                                                    </div>
+                                                </div>
+
+                                                {question.explanation && (
+                                                    <div className="bg-primary/5 p-8 rounded-[28px] border border-primary/20 relative overflow-hidden group/exp">
+                                                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/exp:opacity-20 transition-opacity">
+                                                            <Sparkles className="h-12 w-12 text-primary" />
+                                                        </div>
+                                                        <div className="relative z-10">
+                                                            <div className="flex items-center gap-3 mb-4">
+                                                                <AlertCircle className="h-5 w-5 text-primary" />
+                                                                <span className="text-sm font-black text-primary uppercase tracking-[0.2em]">Deep Learning Insight</span>
+                                                            </div>
+                                                            <div className="text-[16px] leading-relaxed text-foreground/80 font-medium">
+                                                                <MarkdownRenderer content={question.explanation} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
-
-                                        {question.explanation && (
-                                            <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                                                <div className="flex items-start gap-2">
-                                                    <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
-                                                    <div>
-                                                        <div className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-1">
-                                                            Explanation:
-                                                        </div>
-                                                        <div className="text-sm leading-relaxed">{question.explanation}</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {question.hint && (
-                                            <div className="bg-purple-50 dark:bg-purple-950/30 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
-                                                <div className="flex items-start gap-2">
-                                                    <Sparkles className="h-5 w-5 text-purple-500 mt-0.5 flex-shrink-0" />
-                                                    <div>
-                                                        <div className="text-sm font-bold text-purple-700 dark:text-purple-400 mb-1">
-                                                            Hint:
-                                                        </div>
-                                                        <div className="text-sm text-muted-foreground leading-relaxed">
-                                                            {question.hint}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
                     );
                 })}
             </div>
 
             {!submitted && questions.length > 0 && (
-                <div className="flex justify-center pt-6">
+                <div className="flex flex-col items-center gap-6 py-12 animate-in fade-in duration-1000">
+                    <div className="flex items-center gap-3 px-6 py-2 bg-muted/40 rounded-full border border-border/50 text-[11px] font-black text-muted-foreground uppercase tracking-widest">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                        {Object.keys(userAnswers).length} of {questions.length} Concepts Mapped
+                    </div>
+                    
                     <Button
                         onClick={handleSubmit}
                         disabled={Object.keys(userAnswers).length === 0}
-                        size="lg"
-                        className="px-12 h-14 text-lg font-bold bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300 rounded-full"
+                        className="h-20 px-16 rounded-[32px] bg-primary text-primary-foreground font-black text-xl uppercase tracking-widest shadow-[0_32px_64px_-16px_rgba(var(--primary),0.4)] transition-all hover:scale-105 active:scale-95 hover:shadow-[0_48px_80px_-16px_rgba(var(--primary),0.5)] group"
                     >
-                        <CheckCircle className="h-5 w-5 mr-2" />
-                        Submit Quiz
+                        Analyze & Finalize Quiz
+                        <ChevronRight className="h-6 w-6 ml-3 group-hover:translate-x-2 transition-transform" />
                     </Button>
                 </div>
             )}
