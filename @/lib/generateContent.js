@@ -6,9 +6,47 @@ const gemini = new GoogleGenAI({
 });
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODEL = 'google/gemini-2.0-flash-exp:free';
+const OPENROUTER_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
 
 const FALLBACK_TRIGGERS = [429, 401, 403, 500, 502, 503, 504];
+
+const GEMINI_COOLDOWN_MS = 10 * 60 * 1000;
+
+const providerState = {
+  geminiUnavailableUntil: 0,
+  geminiFailureCount: 0,
+  lastGeminiError: null,
+};
+
+function isGeminiAvailable() {
+  const now = Date.now();
+  if (providerState.geminiUnavailableUntil > now) {
+    const remainingMs = providerState.geminiUnavailableUntil - now;
+    const remainingMin = Math.ceil(remainingMs / 60000);
+    console.log(`[AI] Gemini in cooldown, ${remainingMin} min remaining. Using OpenRouter.`);
+    return false;
+  }
+  return true;
+}
+
+function markGeminiUnavailable(error) {
+  providerState.geminiFailureCount += 1;
+  providerState.lastGeminiError = error?.message || 'Unknown error';
+  
+  const backoffMultiplier = Math.min(providerState.geminiFailureCount, 3);
+  const cooldownMs = GEMINI_COOLDOWN_MS * backoffMultiplier;
+  
+  providerState.geminiUnavailableUntil = Date.now() + cooldownMs;
+  
+  console.log(`[AI] Gemini marked unavailable for ${cooldownMs / 60000} minutes (failure #${providerState.geminiFailureCount})`);
+}
+
+function resetGeminiState() {
+  providerState.geminiUnavailableUntil = 0;
+  providerState.geminiFailureCount = 0;
+  providerState.lastGeminiError = null;
+  console.log('[AI] Gemini state reset - provider available');
+}
 
 async function callGemini(prompt, options = {}) {
   const {
@@ -108,37 +146,45 @@ export async function generateContent(prompt, options = {}) {
     geminiBackoffMs = 2000,
   } = options;
 
-  let geminiError = null;
+  if (isGeminiAvailable()) {
+    let geminiError = null;
 
-  for (let attempt = 0; attempt <= maxGeminiRetries; attempt++) {
-    try {
-      const text = await callGemini(prompt, {
-        model: geminiModel,
-        tools,
-      });
+    for (let attempt = 0; attempt <= maxGeminiRetries; attempt++) {
+      try {
+        const text = await callGemini(prompt, {
+          model: geminiModel,
+          tools,
+        });
 
-      return {
-        success: true,
-        provider: 'gemini',
-        content: text,
-      };
-    } catch (error) {
-      geminiError = error;
-      console.error(`[AI] Gemini attempt ${attempt + 1} failed:`, error?.message || error);
+        resetGeminiState();
 
-      if (!shouldFallback(error)) {
-        break;
+        return {
+          success: true,
+          provider: 'gemini',
+          content: text,
+        };
+      } catch (error) {
+        geminiError = error;
+        console.error(`[AI] Gemini attempt ${attempt + 1} failed:`, error?.message || error);
+
+        if (!shouldFallback(error)) {
+          break;
+        }
+
+        if (attempt < maxGeminiRetries) {
+          const backoff = geminiBackoffMs * Math.pow(2, attempt);
+          console.log(`[AI] Retrying Gemini in ${backoff}ms...`);
+          await sleep(backoff);
+        }
       }
+    }
 
-      if (attempt < maxGeminiRetries) {
-        const backoff = geminiBackoffMs * Math.pow(2, attempt);
-        console.log(`[AI] Retrying Gemini in ${backoff}ms...`);
-        await sleep(backoff);
-      }
+    if (shouldFallback(geminiError)) {
+      markGeminiUnavailable(geminiError);
     }
   }
 
-  console.log('[AI] Gemini failed, falling back to OpenRouter...');
+  console.log('[AI] Using OpenRouter fallback...');
 
   try {
     const text = await callOpenRouter(prompt, {
@@ -155,23 +201,51 @@ export async function generateContent(prompt, options = {}) {
 
     return {
       success: false,
-      error: 'AI service temporarily unavailable',
-      geminiError: geminiError?.message,
-      openRouterError: openRouterError?.message,
+      error: 'AI service temporarily unavailable. Please try again in a few minutes.',
     };
   }
 }
 
 export function parseJsonResponse(rawText) {
   try {
-    const cleanJson = rawText
-      .replace(/```json|```/g, '')
-      .trim()
+    if (!rawText || typeof rawText !== 'string') {
+      return { success: false, error: 'Empty or invalid response' };
+    }
+
+    let cleanJson = rawText
+      .replace(/```json\s*/gi, '')
+      .replace(/```\s*/g, '')
+      .trim();
+
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanJson = jsonMatch[0];
+    }
+
+    cleanJson = cleanJson
       .replace(/,\s*}/g, '}')
-      .replace(/,\s*]/g, ']');
+      .replace(/,\s*]/g, ']')
+      .replace(/[\x00-\x1F\x7F]/g, ' ');
     
-    return { success: true, data: JSON.parse(cleanJson) };
+    const parsed = JSON.parse(cleanJson);
+    return { success: true, data: parsed };
   } catch (error) {
+    console.error('[AI] JSON parse error:', error.message, 'Raw text preview:', rawText?.substring(0, 200));
     return { success: false, error: 'Failed to parse AI response' };
   }
+}
+
+export function getProviderStatus() {
+  const now = Date.now();
+  const geminiAvailable = providerState.geminiUnavailableUntil <= now;
+  const cooldownRemaining = geminiAvailable 
+    ? 0 
+    : Math.ceil((providerState.geminiUnavailableUntil - now) / 1000);
+
+  return {
+    geminiAvailable,
+    cooldownRemainingSeconds: cooldownRemaining,
+    geminiFailureCount: providerState.geminiFailureCount,
+    lastGeminiError: providerState.lastGeminiError,
+  };
 }
