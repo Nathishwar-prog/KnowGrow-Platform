@@ -20,6 +20,7 @@ import {
   Eye
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
 
@@ -31,6 +32,7 @@ function Quizzes() {
     const [error, setError] = useState(null);
     const [deletingQuizId, setDeletingQuizId] = useState(null);
     const { user } = useUser();
+    const router = useRouter();
 
     useEffect(() => {
         user && GetAllQuizzes();
@@ -76,7 +78,7 @@ function Quizzes() {
 
         setDeletingQuizId(quizId);
         try {
-            const response = await axios.delete(`/api/quizzes?quizId=${quizId}`);
+            const response = await axios.delete(`/api/quizzes/${quizId}`);
             const data = response.data;
             
             if (data.success) {
@@ -274,7 +276,7 @@ function Quizzes() {
                                                 size="sm" 
                                                 className="flex-1"
                                                 onClick={() => {
-                                                    toast.info('Quiz details view coming soon!');
+                                                    router.push(`/workspace/quizzes/${quiz.quizId}`);
                                                 }}
                                             >
                                                 <Eye className="h-4 w-4 mr-2" />
