@@ -1,21 +1,18 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "../../../@/components/ui/button";
-import { Input } from "../../../@/components/ui/input";
 import { ScrollArea } from "../../../@/components/ui/scroll-area";
-import { Send, Bot, User, Copy, Check, Loader2, BookOpen, Lightbulb, CheckCircle2, AlertCircle, Code2, Sparkles } from "lucide-react";
+import { 
+  Send, Bot, User, Copy, Check, Sparkles, 
+  X, Eraser, MessageCircle, HelpCircle, 
+  Terminal, Lightbulb, Zap, ArrowRight,
+  Code2, BookOpen, AlertCircle, CheckCircle2
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import CustomSyntaxHighlighter from "./CustomSyntaxHighlighter";
 
 const DoubtClearAI = ({ isOpen, onClose }) => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: 'assistant',
-      content: "Hi! I'm your Doubt Clear AI tutor. I'm here to help you understand any concept you're struggling with. Just ask me anything you'd like to learn about!",
-      timestamp: new Date().toISOString()
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
@@ -27,16 +24,19 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (isOpen) {
+      scrollToBottom();
+    }
+  }, [messages, isOpen, isLoading]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+  const handleSendMessage = async (customMessage) => {
+    const messageToSend = customMessage || inputMessage;
+    if (!messageToSend.trim() || isLoading) return;
 
     const userMessage = {
       id: Date.now(),
       role: 'user',
-      content: inputMessage,
+      content: messageToSend,
       timestamp: new Date().toISOString()
     };
 
@@ -51,7 +51,7 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: inputMessage,
+          message: messageToSend,
           conversationHistory: messages.slice(-10)
         }),
       });
@@ -100,13 +100,21 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
     }
   };
 
+  const clearChat = () => {
+    setMessages([]);
+  };
+
+  const suggestedPrompts = [
+    { text: "Explain this concept in simple terms", icon: <Lightbulb className="h-4 w-4" /> },
+    { text: "Give me a practical example", icon: <Zap className="h-4 w-4" /> },
+    { text: "Help me debug this code block", icon: <Terminal className="h-4 w-4" /> },
+    { text: "Summarize the key takeaways", icon: <BookOpen className="h-4 w-4" /> }
+  ];
+
+  // Logic from original formatMessage preserved
   const formatMessage = (content) => {
     const elements = [];
-    
-    // Enhanced regex patterns
     const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-    
-    // Find all code blocks first
     const codeBlocks = [];
     let match;
     while ((match = codeBlockRegex.exec(content)) !== null) {
@@ -119,7 +127,6 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
       });
     }
 
-    // Remove code blocks from content for text processing
     let textContent = content;
     codeBlocks.forEach(block => {
       textContent = textContent.replace(
@@ -128,7 +135,6 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
       );
     });
 
-    // Process content line by line
     const lines = textContent.split('\n');
     let inList = false;
     let inNumberedList = false;
@@ -140,9 +146,7 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
     lines.forEach((line, lineIndex) => {
       const trimmedLine = line.trim();
       
-      // Check for code block placeholder
       if (trimmedLine.startsWith('__CODE_BLOCK_')) {
-        // Close any open lists
         if (inList) {
           elements.push(
             <ul key={`list-${listStartIndex}`} className="ml-6 my-4 space-y-2 list-disc marker:text-primary">
@@ -162,16 +166,17 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
           inNumberedList = false;
         }
 
-        // Find and render the code block
         const blockId = trimmedLine.replace('__CODE_BLOCK_', '').replace('__', '');
         const block = codeBlocks.find(b => b.id === blockId);
         if (block) {
           elements.push(
-            <div key={block.id} className="my-4 rounded-xl overflow-hidden border-2 border-primary/20 shadow-lg hover:shadow-xl transition-shadow duration-300">
-              <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 px-4 py-3 flex items-center justify-between border-b-2 border-primary/20">
+            <div key={block.id} className="my-4 rounded-xl overflow-hidden border border-border bg-muted/30 shadow-sm hover:shadow-md transition-all">
+              <div className="bg-muted/50 px-4 py-2.5 flex items-center justify-between border-b border-border">
                 <div className="flex items-center gap-2">
-                  <Code2 className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-mono font-bold text-primary uppercase tracking-wider">
+                  <div className="p-1 rounded bg-primary/10">
+                    <Code2 className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-wider">
                     {block.language}
                   </span>
                 </div>
@@ -179,18 +184,18 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
                   variant="ghost"
                   size="sm"
                   onClick={() => copyToClipboard(block.code, block.id)}
-                  className="h-8 px-3 text-xs hover:bg-primary/10 transition-colors"
+                  className="h-8 px-2.5 text-xs hover:bg-background transition-colors"
                 >
                   {copiedMessageId === block.id ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 mr-1.5 text-green-500" />
-                      <span className="text-green-500 font-medium">Copied!</span>
-                    </>
+                    <div className="flex items-center gap-1.5 text-green-600 font-medium">
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Copied</span>
+                    </div>
                   ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5 mr-1.5" />
-                      <span>Copy Code</span>
-                    </>
+                    <div className="flex items-center gap-1.5">
+                      <Copy className="h-3.5 w-3.5" />
+                      <span>Copy</span>
+                    </div>
                   )}
                 </Button>
               </div>
@@ -205,10 +210,8 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
         return;
       }
 
-      // Handle headings
       const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
       if (headingMatch) {
-        // Close any open lists
         if (inList) {
           elements.push(
             <ul key={`list-${listStartIndex}`} className="ml-6 my-4 space-y-2 list-disc marker:text-primary">
@@ -232,12 +235,12 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
         const text = headingMatch[2];
         const HeadingTag = `h${level}`;
         const sizes = {
-          1: 'text-2xl font-bold mt-6 mb-4',
-          2: 'text-xl font-bold mt-5 mb-3',
-          3: 'text-lg font-semibold mt-4 mb-3',
-          4: 'text-base font-semibold mt-4 mb-2',
-          5: 'text-sm font-semibold mt-3 mb-2',
-          6: 'text-sm font-semibold mt-3 mb-1'
+          1: 'text-2xl font-bold mt-8 mb-4 tracking-tight',
+          2: 'text-xl font-bold mt-7 mb-3 tracking-tight',
+          3: 'text-lg font-semibold mt-6 mb-3',
+          4: 'text-base font-semibold mt-5 mb-2',
+          5: 'text-sm font-semibold mt-4 mb-2',
+          6: 'text-sm font-semibold mt-4 mb-1'
         };
 
         elements.push(
@@ -245,10 +248,10 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
             HeadingTag,
             {
               key: `heading-${lineIndex}`,
-              className: `${sizes[level]} text-primary flex items-center gap-2 border-l-4 border-primary pl-3 py-1 bg-primary/5 rounded-r-lg`
+              className: `${sizes[level]} text-foreground flex items-center gap-2 group`
             },
             <>
-              <BookOpen className="h-5 w-5 flex-shrink-0" />
+              <div className="w-1.5 h-6 bg-primary rounded-full hidden group-hover:block transition-all" />
               <span>{processInlineFormatting(text, `heading-${lineIndex}`)}</span>
             </>
           )
@@ -256,7 +259,6 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
         return;
       }
 
-      // Handle bullet lists
       const listMatch = trimmedLine.match(/^[-*•]\s+(.+)$/);
       if (listMatch) {
         if (!inList) {
@@ -264,14 +266,14 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
           listStartIndex = lineIndex;
         }
         listItems.push(
-          <li key={`li-${lineIndex}`} className="text-sm leading-relaxed pl-2 hover:text-primary transition-colors">
+          <li key={`li-${lineIndex}`} className="text-sm leading-relaxed pl-1 transition-colors hover:text-foreground">
             {processInlineFormatting(listMatch[1], `li-${lineIndex}`)}
           </li>
         );
         return;
       } else if (inList && trimmedLine) {
         elements.push(
-          <ul key={`list-${listStartIndex}`} className="ml-6 my-4 space-y-2 list-disc marker:text-primary">
+          <ul key={`list-${listStartIndex}`} className="ml-6 my-4 space-y-2.5 list-disc marker:text-primary/60">
             {listItems}
           </ul>
         );
@@ -279,7 +281,6 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
         inList = false;
       }
 
-      // Handle numbered lists
       const numberedMatch = trimmedLine.match(/^\d+\.\s+(.+)$/);
       if (numberedMatch) {
         if (!inNumberedList) {
@@ -287,14 +288,14 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
           numberedListStartIndex = lineIndex;
         }
         numberedItems.push(
-          <li key={`nli-${lineIndex}`} className="text-sm leading-relaxed pl-2 hover:text-primary transition-colors">
+          <li key={`nli-${lineIndex}`} className="text-sm leading-relaxed pl-1 transition-colors hover:text-foreground">
             {processInlineFormatting(numberedMatch[1], `nli-${lineIndex}`)}
           </li>
         );
         return;
       } else if (inNumberedList && trimmedLine) {
         elements.push(
-          <ol key={`nlist-${numberedListStartIndex}`} className="ml-6 my-4 space-y-2 list-decimal marker:text-primary">
+          <ol key={`nlist-${numberedListStartIndex}`} className="ml-6 my-4 space-y-2.5 list-decimal marker:text-primary/60">
             {numberedItems}
           </ol>
         );
@@ -302,27 +303,25 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
         inNumberedList = false;
       }
 
-      // Handle blockquotes
       const blockquoteMatch = trimmedLine.match(/^>\s+(.+)$/);
       if (blockquoteMatch) {
         elements.push(
-          <div key={`quote-${lineIndex}`} className="border-l-4 border-primary/60 pl-4 py-3 my-4 bg-primary/5 rounded-r-xl hover:bg-primary/10 transition-colors">
+          <div key={`quote-${lineIndex}`} className="border-l-4 border-primary/40 pl-5 py-3 my-5 bg-muted/40 rounded-r-xl group transition-all hover:bg-muted/60">
             <div className="flex items-start gap-3">
-              <Lightbulb className="h-5 w-5 text-primary mt-0.5 flex-shrink-0 animate-pulse" />
-              <p className="text-sm italic font-medium">{processInlineFormatting(blockquoteMatch[1], `quote-${lineIndex}`)}</p>
+              <Lightbulb className="h-4 w-4 text-primary/60 mt-1 flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <p className="text-[14px] italic text-muted-foreground leading-relaxed">{processInlineFormatting(blockquoteMatch[1], `quote-${lineIndex}`)}</p>
             </div>
           </div>
         );
         return;
       }
 
-      // Handle special callouts
       if (trimmedLine.startsWith('⚠️') || trimmedLine.includes('**Note:**') || trimmedLine.includes('**Important:**')) {
         elements.push(
-          <div key={`callout-${lineIndex}`} className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-2 border-yellow-500/30 rounded-xl p-4 my-4 shadow-md hover:shadow-lg transition-all">
+          <div key={`callout-${lineIndex}`} className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 my-5 group hover:border-amber-500/40 transition-all">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-6 w-6 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5 animate-pulse" />
-              <p className="text-sm font-semibold leading-relaxed">{processInlineFormatting(trimmedLine, `callout-${lineIndex}`)}</p>
+              <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-medium leading-relaxed text-amber-700 dark:text-amber-400">{processInlineFormatting(trimmedLine, `callout-${lineIndex}`)}</p>
             </div>
           </div>
         );
@@ -331,52 +330,49 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
 
       if (trimmedLine.startsWith('✅') || trimmedLine.includes('**Key Point:**')) {
         elements.push(
-          <div key={`keypoint-${lineIndex}`} className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-2 border-green-500/30 rounded-xl p-4 my-4 shadow-md hover:shadow-lg transition-all">
+          <div key={`keypoint-${lineIndex}`} className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4 my-5 group hover:border-emerald-500/40 transition-all">
             <div className="flex items-start gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-semibold leading-relaxed">{processInlineFormatting(trimmedLine, `keypoint-${lineIndex}`)}</p>
+              <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-medium leading-relaxed text-emerald-700 dark:text-emerald-400">{processInlineFormatting(trimmedLine, `keypoint-${lineIndex}`)}</p>
             </div>
           </div>
         );
         return;
       }
 
-      // Handle special info boxes
       if (trimmedLine.startsWith('💡') || trimmedLine.includes('**Tip:**')) {
         elements.push(
-          <div key={`tip-${lineIndex}`} className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-2 border-blue-500/30 rounded-xl p-4 my-4 shadow-md hover:shadow-lg transition-all">
+          <div key={`tip-${lineIndex}`} className="bg-primary/5 border border-primary/20 rounded-xl p-4 my-5 group hover:border-primary/40 transition-all">
             <div className="flex items-start gap-3">
-              <Sparkles className="h-6 w-6 text-blue-600 dark:text-blue-500 flex-shrink-0 mt-0.5 animate-pulse" />
-              <p className="text-sm font-semibold leading-relaxed">{processInlineFormatting(trimmedLine, `tip-${lineIndex}`)}</p>
+              <Sparkles className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-medium leading-relaxed text-primary/80">{processInlineFormatting(trimmedLine, `tip-${lineIndex}`)}</p>
             </div>
           </div>
         );
         return;
       }
 
-      // Regular paragraphs
       if (trimmedLine) {
         elements.push(
-          <p key={`p-${lineIndex}`} className="text-sm leading-relaxed my-3 text-foreground/90">
+          <p key={`p-${lineIndex}`} className="text-[15px] leading-relaxed my-3.5 text-foreground/80 font-normal">
             {processInlineFormatting(line, `p-${lineIndex}`)}
           </p>
         );
       } else {
-        elements.push(<div key={`space-${lineIndex}`} className="h-3" />);
+        elements.push(<div key={`space-${lineIndex}`} className="h-2" />);
       }
     });
 
-    // Add remaining list items
     if (listItems.length > 0) {
       elements.push(
-        <ul key={`list-end-${listStartIndex}`} className="ml-6 my-4 space-y-2 list-disc marker:text-primary">
+        <ul key={`list-end-${listStartIndex}`} className="ml-6 my-4 space-y-2.5 list-disc marker:text-primary/60">
           {listItems}
         </ul>
       );
     }
     if (numberedItems.length > 0) {
       elements.push(
-        <ol key={`nlist-end-${numberedListStartIndex}`} className="ml-6 my-4 space-y-2 list-decimal marker:text-primary">
+        <ol key={`nlist-end-${numberedListStartIndex}`} className="ml-6 my-4 space-y-2.5 list-decimal marker:text-primary/60">
           {numberedItems}
         </ol>
       );
@@ -388,8 +384,6 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
   const processInlineFormatting = (text, baseKey) => {
     const parts = [];
     let inlineCodeCounter = 0;
-
-    // Process inline code first and store them
     const inlineCodeRegex = /`([^`]+)`/g;
     const inlineCodes = [];
     
@@ -398,24 +392,17 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
       return '';
     });
 
-    // Replace inline code with placeholders
     let processedText = text.replace(inlineCodeRegex, () => {
       return `__INLINE_CODE_${inlineCodeCounter++}__`;
     });
 
-    // Process bold (must be before italic to avoid conflicts)
-    processedText = processedText.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-primary">$1</strong>');
-
-    // Process italic
+    processedText = processedText.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>');
     processedText = processedText.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em class="italic">$1</em>');
-
-    // Process links
     processedText = processedText.replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:text-primary/80 underline decoration-2 underline-offset-2 font-medium transition-colors">$1</a>'
+      '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline font-medium">$1</a>'
     );
 
-    // Split by inline code placeholders
     const segments = processedText.split(/(__INLINE_CODE_\d+__)/);
 
     return segments.map((segment, index) => {
@@ -425,7 +412,7 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
         return (
           <code 
             key={`${baseKey}-code-${index}`} 
-            className="px-2 py-1 bg-muted/80 rounded-md text-xs font-mono border border-primary/20 text-primary font-semibold hover:bg-muted transition-colors"
+            className="px-1.5 py-0.5 bg-muted rounded text-[13px] font-mono border border-border text-primary font-medium"
           >
             {inlineCodes[codeIndex]}
           </code>
@@ -445,134 +432,214 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-background rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col border-2 border-primary/20 animate-in slide-in-from-bottom-4 duration-300">
+    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 sm:p-4 animate-in fade-in duration-300">
+      <div className="bg-background sm:rounded-2xl shadow-[0_0_50px_-12px_rgba(0,0,0,0.3)] w-full max-w-5xl h-full sm:h-[90vh] flex flex-col border-0 sm:border border-border overflow-hidden animate-in slide-in-from-bottom-4 zoom-in-95 duration-500">
+        
         {/* Header */}
-        <div className="p-6 border-b-2 border-primary/20 flex justify-between items-center bg-gradient-to-r from-primary/15 via-primary/10 to-primary/15">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg animate-pulse">
-              <Bot className="h-7 w-7 text-primary-foreground" />
+        <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-background/50 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center gap-3.5">
+            <div className="relative">
+              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 transition-transform hover:rotate-12 duration-300">
+                <Bot className="h-5.5 w-5.5 text-primary-foreground" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-background" title="Online" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                Doubt Clear AI
-                <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-              </h2>
-              <p className="text-xs text-muted-foreground font-medium">Your personal AI tutor - Always ready to help</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold tracking-tight">Doubt Clear AI</h2>
+                <div className="px-1.5 py-0.5 bg-primary/10 rounded text-[10px] font-bold text-primary uppercase tracking-wider">Tutor</div>
+              </div>
+              <p className="text-[12px] text-muted-foreground font-medium flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-primary" />
+                Adaptive Learning Assistant
+              </p>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onClose} 
-            className="hover:bg-destructive/20 hover:text-destructive text-2xl w-10 h-10 rounded-full transition-all"
-          >
-            ×
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearChat}
+                className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                title="Clear conversation"
+              >
+                <Eraser className="h-4.5 w-4.5" />
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onClose} 
+              className="h-9 w-9 text-muted-foreground hover:bg-muted transition-all"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
 
-        {/* Messages */}
-        <ScrollArea className="flex-1 p-6 bg-gradient-to-b from-background to-muted/20">
-          <div className="space-y-6 max-w-4xl mx-auto pb-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-3 duration-300`}
-              >
-                {message.role === 'assistant' && (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/60 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-primary/20">
-                    <Bot className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                )}
+        {/* Chat Body */}
+        <ScrollArea className="flex-1 bg-gradient-to-b from-muted/5 to-transparent">
+          <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col gap-8 min-h-full">
+            
+            {messages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center py-12 animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="w-20 h-20 rounded-3xl bg-primary/5 flex items-center justify-center mb-6 ring-1 ring-primary/20">
+                  <MessageCircle className="h-10 w-10 text-primary opacity-40" />
+                </div>
+                <h3 className="text-2xl font-bold tracking-tight mb-2">How can I help you today?</h3>
+                <p className="text-muted-foreground max-w-md mb-10 text-sm leading-relaxed">
+                  I'm your AI tutor, ready to clarify complex concepts, help you debug code, or guide you through your learning journey.
+                </p>
                 
-                <div
-                  className={`max-w-[85%] rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all duration-300 ${
-                    message.role === 'user'
-                      ? 'bg-gradient-to-br from-primary via-primary/95 to-primary/90 text-primary-foreground ml-auto ring-2 ring-primary/30'
-                      : 'bg-card/80 backdrop-blur-sm border-2 border-primary/10 hover:border-primary/20'
-                  }`}
-                >
-                  <div className={`prose prose-sm max-w-none ${message.role === 'user' ? 'text-primary-foreground' : ''}`}>
-                    {message.role === 'user' ? (
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">{message.content}</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {formatMessage(message.content)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl px-4">
+                  {suggestedPrompts.map((prompt, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleSendMessage(prompt.text)}
+                      className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:bg-muted hover:border-primary/30 transition-all text-left group"
+                    >
+                      <div className="p-2 rounded-lg bg-primary/5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                        {prompt.icon}
+                      </div>
+                      <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground">{prompt.text}</span>
+                      <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-8">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {message.role === 'assistant' && (
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 ring-1 ring-primary/20">
+                        <Bot className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                    
+                    <div className={`group relative flex flex-col gap-1.5 max-w-[85%] ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                      <div
+                        className={`rounded-2xl px-5 py-4 shadow-sm transition-all duration-300 ${
+                          message.role === 'user'
+                            ? 'bg-primary text-primary-foreground font-medium'
+                            : 'bg-card border border-border hover:shadow-md'
+                        }`}
+                      >
+                        {message.role === 'user' ? (
+                          <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        ) : (
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            {formatMessage(message.content)}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2 px-1">
+                        <span className="text-[10px] font-semibold text-muted-foreground/60 tracking-wider">
+                          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {message.role === 'assistant' && (
+                          <button
+                            onClick={() => copyToClipboard(message.content, message.id)}
+                            className="p-1 rounded hover:bg-muted text-muted-foreground/60 hover:text-primary transition-all opacity-0 group-hover:opacity-100"
+                            title="Copy message"
+                          >
+                            {copiedMessageId === message.id ? (
+                              <Check className="h-3 w-3 text-emerald-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {message.role === 'user' && (
+                      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center flex-shrink-0 mt-1 border border-border">
+                        <User className="h-5 w-5 text-muted-foreground" />
                       </div>
                     )}
                   </div>
-                  
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-current/10">
-                    <span className={`text-xs font-medium ${message.role === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(message.content, message.id)}
-                      className={`h-8 w-8 p-0 hover:bg-current/10 transition-all ${message.role === 'user' ? 'text-primary-foreground hover:scale-110' : 'hover:scale-110'}`}
-                    >
-                      {copiedMessageId === message.id ? (
-                        <Check className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                {message.role === 'user' && (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-blue-500/20">
-                    <User className="h-5 w-5 text-white" />
+                ))}
+                
+                {isLoading && (
+                  <div className="flex gap-4 justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 ring-1 ring-primary/20">
+                      <Bot className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="bg-card border border-border rounded-2xl px-5 py-4 shadow-sm flex items-center gap-4">
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                        <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                        <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+                      </div>
+                      <span className="text-xs font-bold text-muted-foreground tracking-wide uppercase">AI is thinking...</span>
+                    </div>
                   </div>
                 )}
               </div>
-            ))}
-            
-            {isLoading && (
-              <div className="flex gap-4 justify-start animate-in fade-in slide-in-from-bottom-3 duration-300">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary via-primary/80 to-primary/60 flex items-center justify-center flex-shrink-0 shadow-lg ring-2 ring-primary/20">
-                  <Bot className="h-5 w-5 text-primary-foreground" />
-                </div>
-                <div className="bg-card/80 backdrop-blur-sm border-2 border-primary/20 rounded-2xl p-5 shadow-lg">
-                  <div className="flex items-center gap-3">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    <div className="space-y-1">
-                      <span className="text-sm text-foreground font-semibold block">Thinking...</span>
-                      <span className="text-xs text-muted-foreground">Analyzing your question</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             )}
             
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-4" />
           </div>
         </ScrollArea>
 
-        {/* Input */}
-        <div className="p-6 border-t-2 border-primary/20 bg-gradient-to-r from-muted/40 via-muted/30 to-muted/40">
-          <div className="flex gap-3 max-w-4xl mx-auto">
-            <Input
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask me anything you want to understand..."
-              disabled={isLoading}
-              className="flex-1 h-14 px-5 rounded-xl border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 text-base transition-all shadow-sm"
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={!inputMessage.trim() || isLoading}
-              size="lg"
-              className="h-14 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
-            >
-              <Send className="h-5 w-5" />
-            </Button>
+        {/* Input Area */}
+        <div className="p-4 sm:p-6 bg-background/50 backdrop-blur-md border-t border-border">
+          <div className="max-w-4xl mx-auto">
+            <div className="relative group transition-all">
+              <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl group-focus-within:bg-primary/10 transition-all opacity-0 group-focus-within:opacity-100" />
+              
+              <div className="relative flex items-end gap-2.5 bg-card border-2 border-border rounded-2xl p-2 pl-4 shadow-sm group-focus-within:border-primary/50 group-focus-within:shadow-md transition-all">
+                <textarea
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Ask a question or request an explanation..."
+                  disabled={isLoading}
+                  rows={1}
+                  className="flex-1 min-h-[44px] max-h-[160px] py-3 bg-transparent border-0 focus:ring-0 text-[15px] placeholder:text-muted-foreground/60 resize-none transition-all scrollbar-none"
+                  style={{ height: 'auto' }}
+                  onInput={(e) => {
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                />
+                
+                <div className="flex items-center gap-1.5 pr-1 pb-1">
+                  <Button
+                    onClick={() => handleSendMessage()}
+                    disabled={!inputMessage.trim() || isLoading}
+                    size="icon"
+                    className="h-9 w-9 rounded-xl shadow-lg shadow-primary/20 disabled:shadow-none transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Send className="h-4.5 w-4.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between mt-3.5 px-2">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 font-medium">
+                  <HelpCircle className="h-3 w-3" />
+                  <span>Ask anything</span>
+                </div>
+                <div className="w-1 h-1 bg-border rounded-full" />
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 font-medium">
+                  <Zap className="h-3 w-3" />
+                  <span>Instant response</span>
+                </div>
+              </div>
+              <p className="hidden sm:block text-[11px] text-muted-foreground/50 font-medium tracking-tight">
+                <kbd className="px-1.5 py-0.5 bg-muted rounded border border-border/50 text-[9px]">Enter</kbd> to send • <kbd className="px-1.5 py-0.5 bg-muted rounded border border-border/50 text-[9px]">Shift+Enter</kbd> for newline
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground text-center mt-3 font-medium">
-            Press <kbd className="px-2 py-0.5 bg-muted rounded border border-border">Enter</kbd> to send • <kbd className="px-2 py-0.5 bg-muted rounded border border-border">Shift + Enter</kbd> for new line
-          </p>
         </div>
       </div>
     </div>
