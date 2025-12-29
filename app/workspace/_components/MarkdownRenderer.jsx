@@ -96,33 +96,45 @@ const MarkdownRenderer = ({ content, copiedMessageId, onCopy }) => {
     const result = [];
     
     // Pattern extraction (Mermaid, Code Blocks)
-    const mermaidRegex = /```mermaid\n([\s\S]*?)```/g;
-    const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+    const mermaidRegex = /```mermaid[\s\n]+([\s\S]*?)```/g;
+    const codeBlockRegex = /```(\w+)?[\s\n]+([\s\S]*?)```/g;
     const specialBlocks = [];
     let match;
     
     while ((match = mermaidRegex.exec(content)) !== null) {
       specialBlocks.push({
-        start: match.index, end: match.index + match[0].length,
-        type: 'mermaid', content: match[1].trim(), id: `mermaid-${match.index}`
+        start: match.index, 
+        end: match.index + match[0].length,
+        type: 'mermaid', 
+        content: match[1].trim(), 
+        id: `mermaid-${match.index}`
       });
     }
     
     while ((match = codeBlockRegex.exec(content)) !== null) {
       if (!specialBlocks.some(b => b.start <= match.index && b.end >= (match.index + match[0].length))) {
         specialBlocks.push({
-          start: match.index, end: match.index + match[0].length,
-          type: 'code', language: match[1] || 'text', content: match[2].trim(), id: `code-${match.index}`
+          start: match.index, 
+          end: match.index + match[0].length,
+          type: 'code', 
+          language: match[1] || 'text', 
+          content: match[2].trim(), 
+          id: `code-${match.index}`
         });
       }
     }
     
     specialBlocks.sort((a, b) => a.start - b.start);
 
-    let textContent = content;
+    // Reconstruct textContent by splitting around special blocks instead of using replace
+    let lastIndex = 0;
+    let textContent = '';
     specialBlocks.forEach(block => {
-      textContent = textContent.replace(content.substring(block.start, block.end), `__SPECIAL_BLOCK_${block.id}__`);
+      textContent += content.substring(lastIndex, block.start);
+      textContent += `\n__SPECIAL_BLOCK_${block.id}__\n`;
+      lastIndex = block.end;
     });
+    textContent += content.substring(lastIndex);
 
     const lines = textContent.split('\n');
     let inList = false;

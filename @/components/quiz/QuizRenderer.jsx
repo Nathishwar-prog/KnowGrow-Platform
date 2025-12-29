@@ -15,7 +15,8 @@ import {
     Copy,
     Check,
     ChevronRight,
-    Trophy
+    Trophy,
+    CheckCircle2
 } from "lucide-react";
 import MarkdownRenderer from "../../../app/workspace/_components/MarkdownRenderer";
 
@@ -292,7 +293,9 @@ export function QuizRenderer({
                                                             }`}>
                                                                 {optionLetter}
                                                             </div>
-                                                            <span className="flex-1 font-bold text-lg tracking-tight">{option}</span>
+                                                            <span className="flex-1 font-bold text-lg tracking-tight">
+                                                                <MarkdownRenderer content={option} />
+                                                            </span>
                                                             
                                                             {submitted && isCorrectOption && <CheckCircle className="h-6 w-6 text-emerald-500 animate-in zoom-in duration-300" />}
                                                             {submitted && isWrongSelected && <XCircle className="h-6 w-6 text-rose-500 animate-in zoom-in duration-300" />}
@@ -338,7 +341,9 @@ export function QuizRenderer({
                                                             }`}>
                                                                 {key}
                                                             </div>
-                                                            <span className="flex-1 font-bold text-lg tracking-tight">{value}</span>
+                                                            <span className="flex-1 font-bold text-lg tracking-tight">
+                                                                <MarkdownRenderer content={value} />
+                                                            </span>
                                                         </label>
                                                     );
                                                 })

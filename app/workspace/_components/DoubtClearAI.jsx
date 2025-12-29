@@ -8,7 +8,7 @@ import {
   Terminal, Lightbulb, Zap, ArrowRight,
   Activity, CheckCircle2,
   ChevronDown, Share2, 
-  Maximize2, Minimize2
+  Maximize2, Minimize2 , BookOpen
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import MarkdownRenderer from "./MarkdownRenderer";
