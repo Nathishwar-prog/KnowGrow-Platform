@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ai } from "../../../@/lib/ai";
+import { generateContent, parseJsonResponse } from "../../../@/lib/generateContent";
 import axios from "axios";
 import { db } from "../../../config/db";
 import { coursesTable } from "../../../config/schema";
@@ -31,31 +31,6 @@ function checkRateLimit(userId) {
   
   userLimit.count++;
   return { allowed: true };
-}
-
-async function callAIWithRetry(model, config, contents, maxRetries = 3) {
-  let lastError = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({ model, config, contents });
-      return response;
-    } catch (err) {
-      lastError = err;
-      const status = err?.status || err?.response?.status;
-      
-      if (status === 429 || err?.message?.includes("429") || err?.message?.toLowerCase().includes("rate limit")) {
-        const backoffMs = Math.min(2000 * Math.pow(2, attempt), 16000);
-        console.log(`AI rate limit hit, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise(res => setTimeout(res, backoffMs));
-        continue;
-      }
-      
-      throw err;
-    }
-  }
-  
-  throw lastError;
 }
 
 const PROMPT = 'Generate a detailed course content for the following chapter in JSON format. The output MUST be a valid JSON object with a "topics" array. Each topic object in the array must have "topic" (string) and "content" (string) fields. The "content" field MUST be a string containing structured HTML. \n\n' +
@@ -107,44 +82,26 @@ export async function POST(req) {
     }
 
     const processChapter = async (chapter, index) => {
-      const config = {
-        responseMimeType: 'text/plain',
-      };
-      const model = "gemini-2.5-flash";
-      const contents = [
-        {
-          role: "user",
-          parts: [
-            {
-              text: PROMPT + '\n\nInput Data:\n' +
-                'Chapter Name: ' + chapter?.name + '\n' +
-                'Course Name: ' + courseTitle + '\n' +
-                JSON.stringify(chapter),
-            },
-          ],
-        },
-      ];
+      const prompt = PROMPT + '\n\nInput Data:\n' +
+        'Chapter Name: ' + chapter?.name + '\n' +
+        'Course Name: ' + courseTitle + '\n' +
+        JSON.stringify(chapter);
 
-      let response;
-      try {
-        response = await callAIWithRetry(model, config, contents, 3);
-      } catch (aiError) {
-        console.error(`AI error for chapter ${index}:`, aiError);
-        throw new Error(`Failed to generate content for chapter: ${chapter?.name || index}`);
+      const aiResult = await generateContent(prompt, {
+        geminiModel: 'gemini-2.5-flash',
+        maxGeminiRetries: 1,
+        geminiBackoffMs: 2000,
+      });
+
+      if (!aiResult.success) {
+        throw new Error(`AI service unavailable for chapter: ${chapter?.name || index}`);
       }
 
-      const RawResp = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      console.log(`[Course Content] Chapter ${index + 1} generated via ${aiResult.provider}`);
 
-      let JSONResponse = null;
-
-      try {
-        const RawJson = RawResp.replace(/```json|```/g, "").trim();
-        const safeJson = RawJson
-          .replace(/,\s*}/g, "}")
-          .replace(/,\s*]/g, "]");
-        JSONResponse = JSON.parse(safeJson);
-      } catch (err) {
-        console.error("JSON parse error:", err.message, "\nRaw response:", RawResp);
+      const parsed = parseJsonResponse(aiResult.content);
+      
+      if (!parsed.success) {
         throw new Error("Invalid JSON returned by model");
       }
 
@@ -153,7 +110,7 @@ export async function POST(req) {
       return {
         youtubeVideo: youtubeData,
         courseData: {
-          ...JSONResponse,
+          ...parsed.data,
           chapterName: chapter?.name
         }
       };
@@ -192,17 +149,6 @@ export async function POST(req) {
     });
   } catch (error) {
     console.error("Route Error:", error);
-    
-    const isRateLimit = error?.status === 429 || 
-                        error?.message?.includes("429") || 
-                        error?.message?.toLowerCase().includes("rate limit");
-    
-    if (isRateLimit) {
-      return NextResponse.json(
-        { success: false, error: "AI service is busy. Please try again in a minute." },
-        { status: 429 }
-      );
-    }
     
     return NextResponse.json(
       { success: false, error: "Failed to generate course content. Please try again." },

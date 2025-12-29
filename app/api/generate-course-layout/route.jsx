@@ -1,6 +1,6 @@
 import { coursesTable } from "../../../config/schema";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ai } from "../../../@/lib/ai";
+import { generateContent, parseJsonResponse } from "../../../@/lib/generateContent";
 import { NextResponse } from "next/server";
 import { db } from "../../../config/db";
 import axios from "axios";
@@ -75,31 +75,6 @@ Banner image prompt guidance:
 
 User Input:`;
 
-async function callAIWithRetry(model, config, contents, maxRetries = 3) {
-  let lastError = null;
-  
-  for (let attempt = 0; attempt < maxRetries; attempt++) {
-    try {
-      const response = await ai.models.generateContent({ model, config, contents });
-      return response;
-    } catch (err) {
-      lastError = err;
-      const status = err?.status || err?.response?.status;
-      
-      if (status === 429 || err?.message?.includes("429") || err?.message?.toLowerCase().includes("rate limit")) {
-        const backoffMs = Math.min(2000 * Math.pow(2, attempt), 16000);
-        console.log(`AI rate limit hit, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
-        await new Promise(res => setTimeout(res, backoffMs));
-        continue;
-      }
-      
-      throw err;
-    }
-  }
-  
-  throw lastError;
-}
-
 export async function POST(request) {
   try {
     const user = await currentUser();
@@ -148,62 +123,34 @@ export async function POST(request) {
       }
     }
 
-    const tools = [{ googleSearch: {} }];
-    const config = {
-      responseMimeType: "text/plain",
-      tools,
-    };
-    const model = "gemini-2.0-flash";
-    const contents = [
-      {
-        role: "user",
-        parts: [{ text: PROMPT + JSON.stringify(formData) }],
-      },
-    ];
+    const prompt = PROMPT + JSON.stringify(formData);
+    
+    const aiResult = await generateContent(prompt, {
+      geminiModel: 'gemini-2.0-flash',
+      tools: [{ googleSearch: {} }],
+      maxGeminiRetries: 1,
+      geminiBackoffMs: 2000,
+    });
 
-    let response;
-    try {
-      response = await callAIWithRetry(model, config, contents, 3);
-    } catch (aiError) {
-      console.error("AI API Error after retries:", aiError);
-      const isRateLimit = aiError?.status === 429 || 
-                          aiError?.message?.includes("429") || 
-                          aiError?.message?.toLowerCase().includes("rate limit");
-      
-      if (isRateLimit) {
-        return NextResponse.json(
-          { success: false, error: "AI service is busy. Please try again in a minute." },
-          { status: 429 }
-        );
-      }
-      
+    if (!aiResult.success) {
       return NextResponse.json(
-        { success: false, error: "Failed to generate course content. Please try again." },
-        { status: 500 }
+        { success: false, error: "AI service temporarily unavailable. Please try again." },
+        { status: 503 }
       );
     }
+
+    console.log(`[Course Layout] Generated via ${aiResult.provider}`);
+
+    const parsed = parseJsonResponse(aiResult.content);
     
-    const RawResp = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
-    if (!RawResp) {
-      return NextResponse.json(
-        { success: false, error: "AI returned empty response. Please try again." },
-        { status: 500 }
-      );
-    }
-    
-    let JSONResponse;
-    try {
-      const RawJson = RawResp.replace(/```json|```/g, "").trim();
-      JSONResponse = JSON.parse(RawJson);
-    } catch (parseError) {
-      console.error("JSON parse error:", parseError);
+    if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: "Failed to parse AI response. Please try again." },
         { status: 500 }
       );
     }
 
+    const JSONResponse = parsed.data;
     const ImagePrompt = JSONResponse?.course?.bannerImagePrompt || "";
     const bannerImageUrl = await GenerateImage(ImagePrompt);
 
