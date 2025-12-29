@@ -14,6 +14,7 @@ import {
 import { Button } from "../../../../@/components/ui/button";
 import { Badge } from "../../../../@/components/ui/badge";
 import { Skeleton } from "../../../../@/components/ui/skeleton";
+import { QuizRenderer } from "../../../../@/components/quiz/QuizRenderer";
 import { 
     ChevronLeft, 
     Trash2, 
@@ -23,7 +24,8 @@ import {
     User,
     Loader2,
     AlertCircle,
-    CheckCircle2
+    Clock,
+    BookOpen
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,48 +38,11 @@ function QuizViewPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState(null);
 
-    const [userAnswers, setUserAnswers] = useState({});
-    const [isSubmitted, setIsSubmitted] = useState(false);
-    const [score, setScore] = useState(0);
-
     useEffect(() => {
         if (quizId) {
             fetchQuiz();
         }
     }, [quizId]);
-
-    const handleAnswerSelect = (questionIdx, answerKey) => {
-        if (isSubmitted) return;
-        setUserAnswers(prev => ({
-            ...prev,
-            [questionIdx]: answerKey
-        }));
-    };
-
-    const handleSubmitQuiz = () => {
-        if (Object.keys(userAnswers).length < questions.length) {
-            if (!confirm("You haven't answered all questions. Submit anyway?")) {
-                return;
-            }
-        }
-
-        let calculatedScore = 0;
-        questions.forEach((q, idx) => {
-            if (userAnswers[idx] === q.correctAnswer) {
-                calculatedScore++;
-            }
-        });
-
-        setScore(calculatedScore);
-        setIsSubmitted(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const handleRestart = () => {
-        setUserAnswers({});
-        setIsSubmitted(false);
-        setScore(0);
-    };
 
     const fetchQuiz = async () => {
         try {
@@ -155,7 +120,27 @@ function QuizViewPage() {
     }
 
     const isOwner = quiz?.createdBy === user?.id;
-    const questions = Array.isArray(quiz?.quizData) ? quiz.quizData : quiz?.quizData?.questions || [];
+    
+    const normalizeQuestions = () => {
+        const rawQuestions = Array.isArray(quiz?.quizData) 
+            ? quiz.quizData 
+            : quiz?.quizData?.questions || [];
+        
+        return rawQuestions.map((q, idx) => ({
+            id: q.id || idx,
+            question: q.question,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            hint: q.hint,
+            type: q.type,
+            difficulty: q.difficulty,
+            codeExample: q.codeExample
+        }));
+    };
+
+    const questions = normalizeQuestions();
+    const quizMetadata = quiz?.quizData || {};
 
     return (
         <div className="p-6 max-w-5xl mx-auto pb-20">
@@ -183,49 +168,22 @@ function QuizViewPage() {
                 )}
             </div>
 
-            {isSubmitted && (
-                <Card className="mb-8 border-2 border-green-500 bg-green-50 animate-in fade-in slide-in-from-top-4 duration-500">
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="bg-green-100 p-4 rounded-full mb-4">
-                                <CheckCircle2 className="h-12 w-12 text-green-600" />
-                            </div>
-                            <h2 className="text-3xl font-bold text-green-800 mb-2">Quiz Completed!</h2>
-                            <p className="text-xl text-green-700 mb-4">
-                                You scored <span className="font-extrabold text-4xl mx-2">{score}</span> out of <span className="font-bold">{questions.length}</span>
-                            </p>
-                            <div className="w-full max-w-md bg-green-200 rounded-full h-4 mb-6">
-                                <div 
-                                    className="bg-green-600 h-4 rounded-full transition-all duration-1000" 
-                                    style={{ width: `${(score / questions.length) * 100}%` }}
-                                ></div>
-                            </div>
-                            <Button 
-                                variant="outline" 
-                                onClick={handleRestart}
-                                className="bg-white hover:bg-green-100 border-green-300 text-green-800 font-bold"
-                            >
-                                Retake Quiz
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-
-            <Card className="mb-8 border-2 shadow-sm">
-                <CardHeader className="pb-4">
+            <Card className="mb-8 border-2 shadow-sm overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 p-8">
                     <div className="flex items-start justify-between gap-4">
                         <div>
-                            <CardTitle className="text-3xl font-bold mb-2">{quiz?.title}</CardTitle>
-                            <CardDescription className="text-lg">{quiz?.description}</CardDescription>
+                            <CardTitle className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                {quiz?.title}
+                            </CardTitle>
+                            <CardDescription className="text-lg">{quiz?.description || quizMetadata.description}</CardDescription>
                         </div>
                         <Badge className="px-3 py-1 text-sm bg-blue-100 text-blue-800 border-blue-200">
                             {quiz?.difficulty}
                         </Badge>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4 border-t border-b">
+                </div>
+                <CardContent className="pt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-4 border-t border-b">
                         <div className="flex items-center gap-3">
                             <Target className="h-5 w-5 text-purple-500" />
                             <div>
@@ -237,9 +195,18 @@ function QuizViewPage() {
                             <FileQuestion className="h-5 w-5 text-blue-500" />
                             <div>
                                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Questions</p>
-                                <p className="font-medium">{quiz?.questionCount} total</p>
+                                <p className="font-medium">{questions.length} total</p>
                             </div>
                         </div>
+                        {quizMetadata.estimatedTime && (
+                            <div className="flex items-center gap-3">
+                                <Clock className="h-5 w-5 text-orange-500" />
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Est. Time</p>
+                                    <p className="font-medium">{quizMetadata.estimatedTime}</p>
+                                </div>
+                            </div>
+                        )}
                         <div className="flex items-center gap-3">
                             <User className="h-5 w-5 text-green-500" />
                             <div>
@@ -248,111 +215,31 @@ function QuizViewPage() {
                             </div>
                         </div>
                     </div>
+
+                    {quizMetadata.learningObjectives && quizMetadata.learningObjectives.length > 0 && (
+                        <div className="mt-6 bg-white/60 dark:bg-black/30 rounded-xl p-6">
+                            <h4 className="font-bold mb-3 flex items-center gap-2 text-lg">
+                                <BookOpen className="h-5 w-5 text-primary" />
+                                Learning Objectives
+                            </h4>
+                            <ul className="space-y-2">
+                                {quizMetadata.learningObjectives.map((objective, index) => (
+                                    <li key={index} className="flex items-start gap-2">
+                                        <span className="text-green-500 mt-0.5">✓</span>
+                                        <span className="text-sm">{objective}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <CheckCircle2 className="h-6 w-6 text-green-500" />
-                Quiz Content
-            </h2>
-
-            <div className="space-y-6">
-                {questions.map((q, idx) => (
-                    <Card key={idx} className={`overflow-hidden transition-all duration-300 ${
-                        isSubmitted 
-                        ? (userAnswers[idx] === q.correctAnswer ? 'border-green-300 shadow-green-50' : 'border-red-200 shadow-red-50')
-                        : 'hover:border-blue-300'
-                    }`}>
-                        <div className="bg-muted/30 p-4 border-b">
-                            <h3 className="font-bold flex gap-3 text-lg">
-                                <span className="flex-shrink-0 bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm">
-                                    {idx + 1}
-                                </span>
-                                {q.question}
-                            </h3>
-                        </div>
-                        <CardContent className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {Object.entries(q.options || {}).map(([key, value]) => {
-                                    const isSelected = userAnswers[idx] === key;
-                                    const isCorrect = key === q.correctAnswer;
-                                    const showResult = isSubmitted;
-
-                                    let bgColor = "bg-background";
-                                    let borderColor = "border-muted";
-                                    let textColor = "text-foreground";
-
-                                    if (showResult) {
-                                        if (isCorrect) {
-                                            bgColor = "bg-green-100";
-                                            borderColor = "border-green-500";
-                                            textColor = "text-green-900";
-                                        } else if (isSelected && !isCorrect) {
-                                            bgColor = "bg-red-100";
-                                            borderColor = "border-red-500";
-                                            textColor = "text-red-900";
-                                        }
-                                    } else if (isSelected) {
-                                        bgColor = "bg-blue-50";
-                                        borderColor = "border-blue-500";
-                                        textColor = "text-blue-900";
-                                    }
-
-                                    return (
-                                        <button 
-                                            key={key}
-                                            disabled={isSubmitted}
-                                            onClick={() => handleAnswerSelect(idx, key)}
-                                            className={`p-4 rounded-xl border-2 flex items-center gap-3 transition-all text-left w-full ${bgColor} ${borderColor} ${textColor} ${
-                                                !isSubmitted && "hover:bg-muted/50 cursor-pointer"
-                                            }`}
-                                        >
-                                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold flex-shrink-0 ${
-                                                isSelected || (showResult && isCorrect)
-                                                ? (isCorrect && showResult ? 'bg-green-600 text-white' : 'bg-blue-600 text-white')
-                                                : 'bg-muted text-muted-foreground'
-                                            }`}>
-                                                {key}
-                                            </span>
-                                            <span className="flex-grow font-medium">{value}</span>
-                                            
-                                            {showResult && isCorrect && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                                            {showResult && isSelected && !isCorrect && <AlertCircle className="h-5 w-5 text-red-600" />}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-
-                            {isSubmitted && q.explanation && (
-                                <div className="mt-6 p-4 bg-blue-50/50 border border-blue-100 rounded-xl animate-in slide-in-from-bottom-2">
-                                    <p className="text-sm font-bold text-blue-800 mb-1 flex items-center gap-2">
-                                        <AlertCircle className="h-4 w-4" />
-                                        Explanation:
-                                    </p>
-                                    <p className="text-sm text-blue-700 leading-relaxed">
-                                        {q.explanation}
-                                    </p>
-                                    <p className="text-xs font-bold mt-2 text-green-700">
-                                        Correct Answer: {q.correctAnswer}
-                                    </p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {!isSubmitted && (
-                <div className="mt-12 flex justify-center">
-                    <Button 
-                        size="lg" 
-                        onClick={handleSubmitQuiz}
-                        className="px-12 py-6 text-lg font-bold rounded-full shadow-lg hover:shadow-xl transition-all"
-                    >
-                        Submit Quiz
-                    </Button>
-                </div>
-            )}
+            <QuizRenderer 
+                questions={questions}
+                mode="attempt"
+                showAnswers={false}
+            />
             
             <div className="mt-10 text-center text-muted-foreground">
                 <p className="flex items-center justify-center gap-2 text-sm">

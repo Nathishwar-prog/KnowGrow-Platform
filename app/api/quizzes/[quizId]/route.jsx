@@ -17,7 +17,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    const { quizId } = params;
+    const { quizId } = await params;
 
     if (!quizId) {
       return NextResponse.json(
@@ -79,7 +79,7 @@ export async function DELETE(req, { params }) {
       );
     }
 
-    const { quizId } = params;
+    const { quizId } = await params;
 
     if (!quizId) {
       return NextResponse.json(
