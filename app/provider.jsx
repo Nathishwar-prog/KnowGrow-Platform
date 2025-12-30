@@ -5,7 +5,11 @@ import { User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { UserDetailContext } from "../context/UserDetailContext";
 import {SelectedChapterIndexContext} from "../context/SelectedChapterIndexContext";
+import { FocusTimerProvider } from "../context/FocusTimerContext";
 import { ThemeProvider } from "next-themes";
+import { GlobalFocusBadge } from "./_components/GlobalFocusBadge";
+import { GlobalFocusAlert } from "./_components/GlobalFocusAlert";
+
 function Provider({ children }) {
     const {user} = useUser();
     const [userDetail,setUserDetail]=useState();
@@ -24,7 +28,6 @@ function Provider({ children }) {
             setUserDetail(result.data);
         } catch (error) {
             console.error("Error creating user:", error);
-            // Even if user creation fails, we should still set some user detail
             setUserDetail({
                 email: user?.primaryEmailAddress?.emailAddress,
                 name: user?.fullName
@@ -34,11 +37,15 @@ function Provider({ children }) {
 
     return (
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <UserDetailContext.Provider value={{ userDetail,setUserDetail }}>
-                <SelectedChapterIndexContext.Provider value={{ selectedChapterIndex,setSelectedChapterIndex }}>
-                    <div>{children}</div>
-                </SelectedChapterIndexContext.Provider>
-            </UserDetailContext.Provider>
+            <FocusTimerProvider>
+                <UserDetailContext.Provider value={{ userDetail,setUserDetail }}>
+                    <SelectedChapterIndexContext.Provider value={{ selectedChapterIndex,setSelectedChapterIndex }}>
+                        <div>{children}</div>
+                        <GlobalFocusBadge />
+                        <GlobalFocusAlert />
+                    </SelectedChapterIndexContext.Provider>
+                </UserDetailContext.Provider>
+            </FocusTimerProvider>
         </ThemeProvider>
         )
 }
