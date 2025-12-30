@@ -2,10 +2,10 @@ import axios from "axios";
 
 const DEFAULT_TIMEOUTS = {
   dashboard: 25000,
-  courseList: 15000,
+  courseList: 25000,
   courseDetail: 25000,
-  enroll: 10000,
-  enrollList: 15000,
+  enroll: 15000,
+  enrollList: 25000,
   default: 15000,
 };
 

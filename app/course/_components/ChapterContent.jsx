@@ -1,14 +1,14 @@
 import React, { useContext, useMemo, useState } from "react";
 import { SelectedChapterIndexContext } from "../../../context/SelectedChapterIndexContext";
 import YouTube from "react-youtube";
-import { Button } from "~/components/ui/button";
+import { Button } from "../../../@/components/ui/button";
 import { CheckCircle, Loader2Icon, X, ArrowRight, ExternalLink, Play } from "lucide-react";
 import axios from "axios";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import CodeEnhancer from "./CodeEnhancer";
 import { logActivity } from "../../workspace/_components/ActivityLogger";
-import { onChapterComplete } from "~/lib/dashboardEvents";
+import { onChapterComplete } from "../../../@/lib/dashboardEvents";
 
 function normalizeChapterTitle(chapter, fallbackIndex) {
     const rawTitle = chapter?.chapterName || 
