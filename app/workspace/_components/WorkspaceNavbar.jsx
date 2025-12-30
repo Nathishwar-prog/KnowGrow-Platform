@@ -51,28 +51,49 @@ const NavDropdownItem = ({ title, icon: Icon, path, isActive, onClick }) => {
   );
 };
 
-// --- Sub-component: WorkspaceNavDropdown ---
+// --- Sub-component: DirectNavItem ---
+const DirectNavItem = ({ title, icon: Icon, path, isActive }) => {
+  return (
+    <Link
+      href={path}
+      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
+        isActive 
+          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      <span className="hidden lg:inline">{title}</span>
+    </Link>
+  );
+};
+
+// --- Sub-component: WorkspaceNavDropdown (with Hover) ---
 const WorkspaceNavDropdown = ({ label, items, pathname }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  const timeoutRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const handleMouseEnter = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 150);
+  };
 
   const hasActiveItem = items.some(item => pathname === item.path || (item.path !== '/workspace' && pathname.startsWith(item.path)));
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div 
+      className="relative" 
+      onMouseEnter={handleMouseEnter} 
+      onMouseLeave={handleMouseLeave}
+    >
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
           hasActiveItem 
             ? "bg-primary/5 text-primary" 
             : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -83,8 +104,8 @@ const WorkspaceNavDropdown = ({ label, items, pathname }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-background border rounded-2xl shadow-2xl p-2 z-[100] animate-in fade-in zoom-in-95 duration-200">
-          <div className="max-h-[70vh] overflow-y-auto custom-scrollbar flex flex-col gap-1">
+        <div className="absolute top-full left-0 mt-1 w-60 bg-background border rounded-2xl shadow-2xl p-2 z-[100] animate-in fade-in zoom-in-95 duration-200">
+          <div className="flex flex-col gap-1">
             {items.map((item) => (
               <NavDropdownItem 
                 key={item.path} 
@@ -129,21 +150,19 @@ export default function WorkspaceNavbar() {
     { title: 'Dashboard', icon: LayoutDashboard, path: '/workspace' },
     { title: 'My Learning', icon: Book, path: '/workspace/my-learning' },
     { title: 'Explore Courses', icon: Compass, path: '/workspace/explore' },
-    { title: 'My Courses', icon: BookOpen, path: '/workspace/my-courses' },
     { title: 'Quizzes', icon: FileQuestion, path: '/workspace/quizzes' },
     { title: 'AI Tools', icon: PencilRulerIcon, path: '/workspace/ai-tools' },
+  ];
+
+  const directItems = [
     { title: 'AI Quiz', icon: BrainCircuit, path: '/workspace/ai-quiz' },
     { title: 'Project Guidance', icon: Lightbulb, path: '/workspace/project-guidance' },
     { title: 'Doubt Clarification', icon: HelpCircle, path: '/workspace/doubt-clarification' },
-    { title: 'Progress', icon: BarChart3, path: '/workspace/progress' },
-    { title: 'Billing', icon: WalletCards, path: '/workspace/billing' },
-    { title: 'Profile', icon: UserCircle2Icon, path: '/workspace/profile' },
   ];
 
   const resourceItems = [
-    { title: 'Cheatsheets', icon: BookOpen, path: '/workspace/cheatsheet-folder' },
-    { title: 'Docs', icon: FileText, path: '/workspace/docs' },
-    { title: 'References', icon: Library, path: '/workspace/references' },
+    { title: 'Docs', icon: FileText, path: '/workspace/resources/docs' },
+    { title: 'References', icon: Library, path: '/workspace/resources/references' },
   ];
 
   return (
@@ -156,7 +175,7 @@ export default function WorkspaceNavbar() {
         
         {/* LEFT: Logo & Navigation */}
         <div className="flex items-center gap-2">
-          <Link href="/workspace" className="flex items-center gap-2 group mr-6">
+          <Link href="/workspace" className="flex items-center gap-2 group mr-4 lg:mr-8">
             <div className="h-9 w-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
               <Sparkles className="h-5 w-5" />
             </div>
@@ -165,9 +184,20 @@ export default function WorkspaceNavbar() {
             </span>
           </Link>
 
-          {/* Desktop Nav Dropdowns */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-1 lg:gap-3">
             <WorkspaceNavDropdown label="Workspace" items={workspaceItems} pathname={pathname} />
+            
+            <div className="h-6 w-px bg-border mx-1 hidden lg:block" />
+            
+            <div className="flex items-center gap-1">
+              {directItems.map(item => (
+                <DirectNavItem key={item.path} {...item} isActive={pathname === item.path} />
+              ))}
+            </div>
+
+            <div className="h-6 w-px bg-border mx-1 hidden lg:block" />
+
             <WorkspaceNavDropdown label="Resources" items={resourceItems} pathname={pathname} />
           </div>
         </div>
@@ -231,9 +261,23 @@ export default function WorkspaceNavbar() {
             
             <div className="space-y-6">
               <div>
-                <h3 className="px-4 text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Workspace</h3>
+                <h3 className="px-4 text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Main</h3>
                 <div className="grid grid-cols-1 gap-1">
                   {workspaceItems.map(item => (
+                    <NavDropdownItem 
+                      key={item.path} 
+                      {...item} 
+                      isActive={pathname === item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="px-4 text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">AI Workspace</h3>
+                <div className="grid grid-cols-1 gap-1">
+                  {directItems.map(item => (
                     <NavDropdownItem 
                       key={item.path} 
                       {...item} 
