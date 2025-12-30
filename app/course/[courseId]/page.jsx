@@ -5,7 +5,7 @@ import WorkspaceNavbar from "../../workspace/_components/WorkspaceNavbar";
 import ChapterListSidebar from "../_components/ChapterListSidebar";
 import ChapterContent from "../_components/ChapterContent";
 import { useParams } from "next/navigation";
-import { api, cancelRequest } from "../../../@/lib/api";
+import { api, cancelRequest } from "~/lib/api";
 
 function Course() {
   const { courseId } = useParams();

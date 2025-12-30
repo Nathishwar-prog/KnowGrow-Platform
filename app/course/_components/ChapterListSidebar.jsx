@@ -4,10 +4,10 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "../../../@/components/ui/accordion";
+} from "~/components/ui/accordion";
 import { SelectedChapterIndexContext } from "../../../context/SelectedChapterIndexContext";
-import { CircularProgress } from "../../../@/components/ui/circular-progress";
-import { getDisplayTitle, sanitizeSubTopic } from "@/lib/titleSanitizer";
+import { CircularProgress } from "~/components/ui/circular-progress";
+import { getDisplayTitle, sanitizeSubTopic } from "~/lib/titleSanitizer";
 
 function getChapterSubTopics(chapter) {
   if (chapter?.subTopics && Array.isArray(chapter.subTopics) && chapter.subTopics.length > 0) {

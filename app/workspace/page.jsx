@@ -8,13 +8,13 @@ import RecommendedCourses from "./_components/RecommendedCourses";
 import ProgressDashboard from "./_components/ProgressDashboard";
 import StudyTimer from "./_components/StudyTimer";
 import StudyGroups from "./_components/StudyGroups";
-import { Skeleton } from "../../@/components/ui/skeleton";
-import { Card, CardContent } from "../../@/components/ui/card";
-import { Button } from "../../@/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
+import { Card, CardContent } from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
 import { Loader2, AlertCircle, RefreshCw, BookOpen, Plus, Trophy, Star, Award, Target } from "lucide-react";
 import AddNewCourseDialog from "./_components/AddNewCourseDialog";
 import LearningStreak from "./_components/LearningStreak";
-import { OnboardingTour } from "../../@/components/ui/onboarding-tour";
+import { OnboardingTour } from "~/components/ui/onboarding-tour";
 import { useDashboard } from "../../context/DashboardContext";
 import axios from "axios";
 

@@ -1,12 +1,12 @@
 import axios from "axios";
 
 const DEFAULT_TIMEOUTS = {
-  dashboard: 12000,
-  courseList: 6000,
-  courseDetail: 8000,
-  enroll: 5000,
-  enrollList: 8000,
-  default: 10000,
+  dashboard: 25000,
+  courseList: 15000,
+  courseDetail: 25000,
+  enroll: 10000,
+  enrollList: 15000,
+  default: 15000,
 };
 
 const activeRequests = new Map();

@@ -1,6 +1,6 @@
 import { Gift } from "lucide-react";
 import React from "react";
-import { getDisplayTitle, sanitizeSubTopic } from "../../../../@/lib/titleSanitizer";
+import { getDisplayTitle, sanitizeSubTopic } from "~/lib/titleSanitizer";
 
 function ChapterTopicList({ course }) {
   const courseLayout = course?.courseJson?.course;
