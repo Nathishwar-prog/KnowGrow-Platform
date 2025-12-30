@@ -6,6 +6,7 @@ import { Badge } from "../../../@/components/ui/badge";
 import Link from "next/link";
 import axios from "axios";
 import { toast } from "sonner";
+import { onCourseEnroll } from "../../../@/lib/dashboardEvents";
 
 function CourseCard({ course }) {
     const courseJson = course?.courseJson?.course;
@@ -25,6 +26,7 @@ function CourseCard({ course }) {
                 return;
             }
             toast.success('Enrolled Successfully!')
+            onCourseEnroll();
             setLoading(false);
         }
         catch (e) {

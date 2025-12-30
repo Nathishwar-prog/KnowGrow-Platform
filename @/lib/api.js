@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const DEFAULT_TIMEOUTS = {
-  dashboard: 8000,
+  dashboard: 12000,
   courseList: 6000,
   courseDetail: 8000,
   enroll: 5000,
@@ -102,6 +102,10 @@ export const api = {
   post: (url, data, options = {}) => request({ url, method: "POST", data, ...options }),
   put: (url, data, options = {}) => request({ url, method: "PUT", data, ...options }),
   delete: (url, options = {}) => request({ url, method: "DELETE", ...options }),
+
+  dashboard: {
+    get: () => request({ url: "/api/dashboard", timeoutType: "dashboard" }),
+  },
 
   courses: {
     list: () => request({ url: "/api/courses", timeoutType: "courseList" }),

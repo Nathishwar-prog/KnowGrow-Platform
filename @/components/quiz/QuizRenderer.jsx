@@ -19,6 +19,7 @@ import {
     CheckCircle2
 } from "lucide-react";
 import MarkdownRenderer from "../../../app/workspace/_components/MarkdownRenderer";
+import { onQuizComplete } from "../../lib/dashboardEvents";
 
 const getQuestionIcon = (type) => {
     const icons = {
@@ -83,6 +84,7 @@ export function QuizRenderer({
             }
         }
         setSubmitted(true);
+        onQuizComplete();
         if (onSubmit) {
             onSubmit(userAnswers);
         }

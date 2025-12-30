@@ -8,6 +8,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import CodeEnhancer from "./CodeEnhancer";
 import { logActivity } from "../../workspace/_components/ActivityLogger";
+import { onChapterComplete } from "../../../@/lib/dashboardEvents";
 
 function normalizeChapterTitle(chapter, fallbackIndex) {
     const rawTitle = chapter?.chapterName || 
@@ -66,6 +67,7 @@ function ChapterContent({ courseInfo, refreshData }) {
         refreshData();
 
         logActivity(`Completed: ${chapterName}`, 'success');
+        onChapterComplete();
         toast.success('Chapter Marked Completed!');
         setLoading(false);
     };
@@ -80,6 +82,7 @@ function ChapterContent({ courseInfo, refreshData }) {
 
         console.log(result);
         refreshData();
+        onChapterComplete();
         toast.success('Chapter Marked InCompleted!');
         setLoading(false);
     };

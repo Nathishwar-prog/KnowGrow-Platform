@@ -1,107 +1,76 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../@/components/ui/card";
 import { Progress } from "../../../@/components/ui/progress";
+import { Skeleton } from "../../../@/components/ui/skeleton";
 import {
   BookOpen,
   Target,
   TrendingUp,
   CheckCircle,
-  Calendar,
   Award,
-  Zap,
   Activity
 } from "lucide-react";
-import { getActivities, formatTimeAgo } from "./ActivityLogger";
 
-const ProgressDashboard = ({ enrolledCourses = [] }) => {
-  const [stats, setStats] = useState({
-    totalCourses: 0,
-    completedCourses: 0,
-    inProgressCourses: 0,
-    totalChapters: 0,
-    completedChapters: 0,
-    averageProgress: 0
-  });
+function formatTimeAgo(isoString) {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
 
-  const [recentActivities, setRecentActivities] = useState([]);
-  const [courseProgressList, setCourseProgressList] = useState([]);
+  if (seconds < 60) return 'Just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min${minutes > 1 ? 's' : ''} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+}
 
-  useEffect(() => {
-    calculateStats();
-    // Load activities
-    setRecentActivities(getActivities());
+function ProgressSkeleton() {
+  return (
+    <div className="mb-10">
+      <Skeleton className="h-8 w-64 mb-6" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-28 rounded-xl" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <Skeleton className="h-96 rounded-xl" />
+        <Skeleton className="h-96 rounded-xl" />
+      </div>
+    </div>
+  );
+}
 
-    // Listen for storage events to update activity feed in real-time (across tabs or components)
-    const handleStorageChange = () => {
-      setRecentActivities(getActivities());
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, [enrolledCourses]);
+const ProgressDashboard = ({ progress, recentActivity = [], loading = false }) => {
+  if (loading) {
+    return <ProgressSkeleton />;
+  }
 
-  const calculateStats = () => {
-    const totalCourses = enrolledCourses.length;
-    let completedCourses = 0;
-    let inProgressCourses = 0;
-    let totalChapters = 0;
-    let allCompletedChaptersCount = 0;
-
-    const progressList = enrolledCourses.map(enrollment => {
-      const course = enrollment?.courses;
-      const enrollData = enrollment?.enrollCourse;
-
-      if (!course || !enrollData) return null;
-
-      const courseTotalChapters = course.noOfChapters || 0; // Fallback to 0 if undefined
-      const completedList = enrollData.completedChapters || []; // Ensure array
-      const completedCount = completedList.length;
-
-      totalChapters += courseTotalChapters;
-      allCompletedChaptersCount += completedCount;
-
-      // Calculate individual course progress
-      const progress = courseTotalChapters > 0
-        ? Math.round((completedCount / courseTotalChapters) * 100)
-        : 0;
-
-      if (progress >= 100) {
-        completedCourses++;
-      } else if (progress > 0) {
-        inProgressCourses++;
-      }
-
-      return {
-        id: course.cid,
-        title: course.name,
-        progress: Math.min(100, progress), // Cap at 100
-        chapters: courseTotalChapters,
-        completed: completedCount
-      };
-    }).filter(Boolean);
-
-    setCourseProgressList(progressList);
-
-    const averageProgress = totalChapters > 0
-      ? Math.round((allCompletedChaptersCount / totalChapters) * 100)
-      : 0;
-
-    setStats({
-      totalCourses,
-      completedCourses,
-      inProgressCourses,
-      totalChapters,
-      completedChapters: allCompletedChaptersCount,
-      averageProgress
-    });
+  const stats = {
+    totalCourses: progress?.totalCourses || 0,
+    completedCourses: progress?.completedCourses || 0,
+    inProgressCourses: progress?.inProgressCourses || 0,
+    totalChapters: progress?.totalChapters || 0,
+    completedChapters: progress?.completedChapters || 0,
+    averageProgress: progress?.overallPercentage || 0
   };
+
+  const courseProgressList = (progress?.perCourse || []).map(course => ({
+    id: course.courseId,
+    title: course.courseName,
+    progress: course.progress,
+    chapters: course.totalChapters,
+    completed: course.completedChapters
+  }));
 
   return (
     <div className="mb-10">
       <h2 className="text-2xl font-bold text-foreground mb-6">Your Learning Progress</h2>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card className="border shadow-sm bg-card hover:shadow-md transition-all dark:border-slate-800">
           <CardContent className="p-6">
@@ -163,9 +132,7 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
         </Card>
       </div>
 
-      {/* Progress Charts & Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Course Progress List */}
         <Card className="border shadow-sm bg-card dark:border-slate-800 overflow-hidden flex flex-col">
           <CardHeader className="sticky top-0 bg-card/80 backdrop-blur-sm z-10 pb-3 border-b dark:border-slate-800">
             <CardTitle className="flex items-center text-lg text-foreground">
@@ -175,16 +142,28 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
           </CardHeader>
           <CardContent className="p-6 space-y-6 max-h-[450px] overflow-y-auto custom-scrollbar">
             {courseProgressList.length > 0 ? (
-              courseProgressList.map((course, index) => (
-                <div key={index} className="space-y-2 group">
+              courseProgressList.map((course) => (
+                <div key={course.id} className="space-y-2 group">
                   <div className="flex justify-between items-end">
-                    <h3 className="font-medium text-foreground group-hover:text-blue-600 transition-colors">{course.title}</h3>
-                    <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded">
+                    <h3 className="font-medium text-foreground group-hover:text-blue-600 transition-colors line-clamp-1">
+                      {course.title}
+                    </h3>
+                    <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded flex-shrink-0 ml-2">
                       {course.completed}/{course.chapters} Ch
                     </span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Progress value={course.progress} className="flex-1 h-2" indicatorClassName={course.progress === 100 ? "bg-green-500" : course.progress > 50 ? "bg-blue-500" : "bg-amber-500"} />
+                    <Progress 
+                      value={course.progress} 
+                      className="flex-1 h-2" 
+                      indicatorClassName={
+                        course.progress === 100 
+                          ? "bg-green-500" 
+                          : course.progress > 50 
+                            ? "bg-blue-500" 
+                            : "bg-amber-500"
+                      } 
+                    />
                     <span className="text-sm font-bold text-foreground w-10 text-right">
                       {course.progress}%
                     </span>
@@ -203,7 +182,6 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
           </CardContent>
         </Card>
 
-        {/* Learning Activity */}
         <Card className="border shadow-sm bg-card dark:border-slate-800 overflow-hidden flex flex-col">
           <CardHeader className="sticky top-0 bg-card/80 backdrop-blur-sm z-10 pb-3 border-b dark:border-slate-800">
             <CardTitle className="flex items-center text-lg text-foreground">
@@ -213,16 +191,18 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
           </CardHeader>
           <CardContent className="p-6 max-h-[450px] overflow-y-auto custom-scrollbar">
             <div className="space-y-6">
-              {recentActivities.length > 0 ? (
-                recentActivities.map((activity) => (
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity) => (
                   <div key={activity.id} className="flex items-start group">
                     <div className="flex-shrink-0 mt-1 relative">
-                      {/* Line connector */}
                       <div className="absolute top-8 left-1/2 -ml-px w-0.5 h-full bg-muted group-last:hidden" aria-hidden="true"></div>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ring-4 ring-card relative z-10 ${activity.type === 'success' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' :
-                          activity.type === 'award' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
-                            'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
-                        }`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ring-4 ring-card relative z-10 ${
+                        activity.type === 'success' 
+                          ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' 
+                          : activity.type === 'award' 
+                            ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' 
+                            : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+                      }`}>
                         {activity.type === 'success' ? <CheckCircle className="h-4 w-4" /> :
                           activity.type === 'award' ? <Award className="h-4 w-4" /> :
                             <BookOpen className="h-4 w-4" />}
@@ -232,7 +212,9 @@ const ProgressDashboard = ({ enrolledCourses = [] }) => {
                       <p className="text-sm font-medium text-foreground">
                         {activity.title}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{formatTimeAgo(activity.timestamp)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatTimeAgo(activity.timestamp)}
+                      </p>
                     </div>
                   </div>
                 ))
