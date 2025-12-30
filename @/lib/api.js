@@ -1,42 +1,25 @@
+import axios from "axios";
+
 const DEFAULT_TIMEOUTS = {
   dashboard: 8000,
-  courses: 6000,
+  courseList: 6000,
+  courseDetail: 8000,
   enroll: 5000,
-  user: 5000,
-  achievements: 5000,
-  default: 8000
+  enrollList: 8000,
+  default: 10000,
 };
 
 const activeRequests = new Map();
 
-function getTimeoutMs(type) {
-  return DEFAULT_TIMEOUTS[type] || DEFAULT_TIMEOUTS.default;
+function createAbortKey(url, method = "GET") {
+  return `${method}:${url}`;
 }
 
-export function createAbortController(key, timeoutMs) {
-  if (activeRequests.has(key)) {
-    activeRequests.get(key).abort();
-  }
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => {
+export function cancelRequest(url, method = "GET") {
+  const key = createAbortKey(url, method);
+  const controller = activeRequests.get(key);
+  if (controller) {
     controller.abort();
-  }, timeoutMs);
-
-  activeRequests.set(key, controller);
-
-  return {
-    signal: controller.signal,
-    cleanup: () => {
-      clearTimeout(timeoutId);
-      activeRequests.delete(key);
-    }
-  };
-}
-
-export function cancelRequest(key) {
-  if (activeRequests.has(key)) {
-    activeRequests.get(key).abort();
     activeRequests.delete(key);
   }
 }
@@ -48,131 +31,110 @@ export function cancelAllRequests() {
   activeRequests.clear();
 }
 
-function formatError(error) {
-  if (error.name === 'AbortError' || error.code === 23) {
-    return 'Request timed out. Please check your connection and try again.';
-  }
-  if (error.response?.status === 401) {
-    return 'Please sign in to continue.';
-  }
-  if (error.response?.status === 404) {
-    return 'The requested resource was not found.';
-  }
-  if (error.response?.status >= 500) {
-    return 'Server error. Please try again later.';
-  }
-  if (error.message?.includes('Network Error')) {
-    return 'Network error. Please check your connection.';
-  }
-  return error.response?.data?.error || error.message || 'An unexpected error occurred.';
+function getTimeout(type) {
+  return DEFAULT_TIMEOUTS[type] || DEFAULT_TIMEOUTS.default;
 }
 
-export async function apiRequest(url, options = {}) {
+async function request(config) {
   const {
-    method = 'GET',
+    url,
+    method = "GET",
     data,
-    type = 'default',
-    key,
-    timeout,
-    headers = {},
+    timeoutType = "default",
+    timeout: customTimeout,
+    cancelPrevious = true,
     ...rest
-  } = options;
+  } = config;
 
-  const requestKey = key || `${method}:${url}`;
-  const timeoutMs = timeout || getTimeoutMs(type);
-  const { signal, cleanup } = createAbortController(requestKey, timeoutMs);
+  const key = createAbortKey(url, method);
 
-  const startTime = Date.now();
+  if (cancelPrevious && activeRequests.has(key)) {
+    activeRequests.get(key).abort();
+    activeRequests.delete(key);
+  }
+
+  const controller = new AbortController();
+  activeRequests.set(key, controller);
+
+  const timeout = customTimeout || getTimeout(timeoutType);
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeout);
 
   try {
-    const fetchOptions = {
+    const response = await axios({
+      url,
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers
-      },
-      signal,
-      ...rest
-    };
+      data,
+      signal: controller.signal,
+      timeout,
+      ...rest,
+    });
 
-    if (data && method !== 'GET') {
-      fetchOptions.body = JSON.stringify(data);
-    }
+    clearTimeout(timeoutId);
+    activeRequests.delete(key);
+    return { success: true, data: response.data, status: response.status };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    activeRequests.delete(key);
 
-    const response = await fetch(url, fetchOptions);
-    const elapsed = Date.now() - startTime;
-
-    if (elapsed > 3000) {
-      console.warn(`[API] Slow request: ${method} ${url} took ${elapsed}ms`);
-    }
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw {
-        response: {
-          status: response.status,
-          data: errorData
-        },
-        message: errorData.error || `HTTP ${response.status}`
+    if (error.name === "AbortError" || error.code === "ECONNABORTED" || error.code === "ERR_CANCELED") {
+      return {
+        success: false,
+        error: "Request took too long. Please try again.",
+        isTimeout: true,
+        isCanceled: error.code === "ERR_CANCELED",
       };
     }
 
-    const result = await response.json();
-    cleanup();
-    return { data: result, success: true };
-
-  } catch (error) {
-    cleanup();
-    
-    const friendlyMessage = formatError(error);
-    console.error(`[API] Error on ${method} ${url}:`, friendlyMessage);
-
+    const serverError = error.response?.data?.error || error.response?.data?.message;
     return {
       success: false,
-      error: friendlyMessage,
-      isTimeout: error.name === 'AbortError',
-      status: error.response?.status
+      error: serverError || error.message || "An unexpected error occurred.",
+      status: error.response?.status,
+      isTimeout: false,
     };
   }
 }
 
-export async function get(url, options = {}) {
-  return apiRequest(url, { ...options, method: 'GET' });
-}
-
-export async function post(url, data, options = {}) {
-  return apiRequest(url, { ...options, method: 'POST', data });
-}
-
-export async function put(url, data, options = {}) {
-  return apiRequest(url, { ...options, method: 'PUT', data });
-}
-
-export async function patch(url, data, options = {}) {
-  return apiRequest(url, { ...options, method: 'PATCH', data });
-}
-
-export async function del(url, options = {}) {
-  return apiRequest(url, { ...options, method: 'DELETE' });
-}
-
-export function useCleanupOnUnmount(keys) {
-  return () => {
-    if (Array.isArray(keys)) {
-      keys.forEach(cancelRequest);
-    } else if (keys) {
-      cancelRequest(keys);
-    }
-  };
-}
-
 export const api = {
-  get,
-  post,
-  put,
-  patch,
-  delete: del,
-  cancelRequest,
-  cancelAllRequests,
-  createAbortController
+  get: (url, options = {}) => request({ url, method: "GET", ...options }),
+  post: (url, data, options = {}) => request({ url, method: "POST", data, ...options }),
+  put: (url, data, options = {}) => request({ url, method: "PUT", data, ...options }),
+  delete: (url, options = {}) => request({ url, method: "DELETE", ...options }),
+
+  courses: {
+    list: () => request({ url: "/api/courses", timeoutType: "courseList" }),
+    get: (courseId) => request({ url: `/api/courses?courseId=${courseId}`, timeoutType: "courseDetail" }),
+    explore: (search = "") => {
+      const url = search ? `/api/courses?courseId=0&search=${encodeURIComponent(search)}` : "/api/courses?courseId=0";
+      return request({ url, timeoutType: "courseList" });
+    },
+  },
+
+  enroll: {
+    list: () => request({ url: "/api/enroll-course", timeoutType: "enrollList" }),
+    get: (courseId) => request({ url: `/api/enroll-course?courseId=${courseId}`, timeoutType: "courseDetail" }),
+    create: (courseId) => request({
+      url: "/api/enroll-course",
+      method: "POST",
+      data: { courseId },
+      timeoutType: "enroll",
+      cancelPrevious: false,
+    }),
+    update: (courseId, completedChapter) => request({
+      url: "/api/enroll-course",
+      method: "PUT",
+      data: { courseId, completedChapter },
+      timeoutType: "enroll",
+    }),
+  },
 };
+
+export function useCleanupOnUnmount(cleanup) {
+  if (typeof window !== "undefined") {
+    return cleanup;
+  }
+}
+
+export default api;

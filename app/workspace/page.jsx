@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import WelcomeBanner from "./_components/WelcomeBanner";
 import CourseCard from "./_components/CourseCard";
 import EnrollCourseCard from "./_components/EnrollCourseCard";
@@ -14,15 +14,16 @@ import { Card, CardContent } from "../../@/components/ui/card";
 import { Button } from "../../@/components/ui/button";
 import { Loader2, AlertCircle, RefreshCw, BookOpen, Plus, Trophy, Star, Award, Target } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
+import axios from "axios";
 import AddNewCourseDialog from "./_components/AddNewCourseDialog";
 import LearningStreak from "./_components/LearningStreak";
 import { OnboardingTour } from "../../@/components/ui/onboarding-tour";
-import { api, cancelAllRequests } from "../../@/lib/api";
 
 
 function AchievementsSection({ achievements }) {
     if (!achievements || achievements.length === 0) return null;
 
+    // Define achievement types and their icons
     const achievementIcons = {
         "first_course": <BookOpen className="w-6 h-6" />,
         "quiz_master": <Target className="w-6 h-6" />,
@@ -78,134 +79,87 @@ function Workspace() {
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
     const { user } = useUser();
-    const mountedRef = useRef(true);
 
     useEffect(() => {
-        mountedRef.current = true;
-        
-        if (user) {
-            GetEnrolledCourses();
-            GetUserCourses();
-            GetUserAchievements();
-            checkOnboardingStatus();
-        }
-
-        return () => {
-            mountedRef.current = false;
-            cancelAllRequests();
-        };
+        user && GetEnrolledCourses();
+        user && GetUserCourses();
+        user && GetUserAchievements();
+        user && checkOnboardingStatus();
     }, [user]);
 
     const checkOnboardingStatus = async () => {
         try {
             setIsCheckingOnboarding(true);
-            const result = await api.get('/api/user', { type: 'user', key: 'user-onboarding' });
-            if (mountedRef.current && result.success && result.data?.isOnboarded === false) {
+            const result = await axios.get('/api/user');
+            if (result.data && result.data.isOnboarded === false) {
                 setTimeout(() => setShowOnboarding(true), 500);
             }
         } catch (error) {
             console.error('Error checking onboarding status:', error);
         } finally {
-            if (mountedRef.current) setIsCheckingOnboarding(false);
+            setIsCheckingOnboarding(false);
         }
     };
 
     const handleOnboardingComplete = async () => {
         setShowOnboarding(false);
         try {
-            await api.patch('/api/user', { isOnboarded: true }, { type: 'user' });
+            await axios.patch('/api/user', { isOnboarded: true });
         } catch (error) {
             console.error('Error updating onboarding status:', error);
         }
     };
 
-    const GetEnrolledCourses = useCallback(async () => {
-        if (!mountedRef.current) return;
-        
+    const GetEnrolledCourses = async () => {
         try {
             setIsLoadingEnrolled(true);
             setErrorEnrolled(null);
-            
-            const result = await api.get('/api/enroll-course', { 
-                type: 'dashboard', 
-                key: 'enrolled-courses' 
-            });
-            
-            if (!mountedRef.current) return;
-            
-            if (result.success) {
-                setEnrolledCourses(Array.isArray(result.data) ? result.data : []);
-            } else {
-                setErrorEnrolled(result.error || 'Failed to load enrolled courses.');
-            }
+            const result = await axios.get('/api/enroll-course');
+            console.log('Enrolled courses:', result.data);
+            setEnrolledCourses(result.data);
         } catch (error) {
-            if (mountedRef.current) {
-                setErrorEnrolled('Failed to load your enrolled courses. Please try again.');
-            }
+            console.error('Error fetching enrolled courses:', error);
+            setErrorEnrolled('Failed to load your enrolled courses. Please try again.');
         } finally {
-            if (mountedRef.current) setIsLoadingEnrolled(false);
+            setIsLoadingEnrolled(false);
         }
-    }, []);
+    };
 
-    const GetUserCourses = useCallback(async () => {
-        if (!mountedRef.current) return;
-        
+    const GetUserCourses = async () => {
         try {
             setIsLoadingUserCourses(true);
             setErrorUserCourses(null);
-            
-            const result = await api.get('/api/courses', { 
-                type: 'courses', 
-                key: 'user-courses' 
-            });
-            
-            if (!mountedRef.current) return;
-            
-            if (result.success) {
-                setUserCourses(Array.isArray(result.data) ? result.data : []);
-            } else {
-                setErrorUserCourses(result.error || 'Failed to load courses.');
-            }
+            const result = await axios.get("/api/courses");
+            console.log('User courses:', result.data);
+            setUserCourses(result.data);
         } catch (error) {
-            if (mountedRef.current) {
-                setErrorUserCourses('Failed to load your created courses. Please try again.');
-            }
+            console.error('Error fetching user courses:', error);
+            setErrorUserCourses('Failed to load your created courses. Please try again.');
         } finally {
-            if (mountedRef.current) setIsLoadingUserCourses(false);
+            setIsLoadingUserCourses(false);
         }
-    }, []);
+    };
 
-    const GetUserAchievements = useCallback(async () => {
-        if (!mountedRef.current) return;
-        
+    const GetUserAchievements = async () => {
         try {
             setIsLoadingAchievements(true);
             setErrorAchievements(null);
-            
-            const result = await api.get('/api/achievements', { 
-                type: 'achievements', 
-                key: 'user-achievements' 
-            });
-            
-            if (!mountedRef.current) return;
-            
-            if (result.success) {
-                setAchievements(Array.isArray(result.data) ? result.data : []);
-            } else if (result.status === 404) {
+            const result = await axios.get("/api/achievements");
+            console.log('User achievements:', result.data);
+            setAchievements(result.data);
+        } catch (error) {
+            console.error('Error fetching user achievements:', error);
+            if (error.response?.status === 404) {
                 setErrorAchievements('User profile not found. Please try refreshing the page.');
-            } else if (result.status === 401) {
+            } else if (error.response?.status === 401) {
                 setErrorAchievements('Authentication required. Please sign in again.');
             } else {
-                setErrorAchievements(result.error || 'Failed to load achievements.');
-            }
-        } catch (error) {
-            if (mountedRef.current) {
                 setErrorAchievements('Failed to load your achievements. Please try again.');
             }
         } finally {
-            if (mountedRef.current) setIsLoadingAchievements(false);
+            setIsLoadingAchievements(false);
         }
-    }, []);
+    };
 
     const refreshAll = () => {
         GetEnrolledCourses();
@@ -222,10 +176,13 @@ function Workspace() {
             
             <WelcomeBanner />
 
+            {/* Study Timer */}
             <StudyTimer />
 
+            {/* Learning Streak Tracker */}
             <LearningStreak />
 
+            {/* Refresh Button */}
             <div className="flex justify-end mb-6">
                 <Button
                     variant="outline"
@@ -238,12 +195,16 @@ function Workspace() {
                 </Button>
             </div>
 
+            {/* Progress Dashboard */}
             <ProgressDashboard enrolledCourses={enrolledCourses} />
 
+            {/* Recommended Courses */}
             <RecommendedCourses enrolledCourses={enrolledCourses} />
 
+            {/* Study Groups */}
             <StudyGroups />
 
+            {/* Achievements Section */}
             {isLoadingAchievements ? (
                 <div className="mb-10">
                     <div className="flex items-center justify-between mb-4">
@@ -261,6 +222,7 @@ function Workspace() {
                 <AchievementsSection achievements={achievements} />
             )}
 
+            {/* Enrolled Courses Section */}
             <div className="mb-10">
                 <div className="flex items-center justify-between mb-4">
                     <h2 className='font-bold text-xl bg-gradient-to-r from-emerald-500 to-emerald-700 bg-clip-text text-transparent'>
@@ -274,6 +236,7 @@ function Workspace() {
                     </p>
                 </div>
 
+                {/* Enrolled Courses Loading */}
                 {isLoadingEnrolled && (
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -288,6 +251,7 @@ function Workspace() {
                     </div>
                 )}
 
+                {/* Enrolled Courses Error */}
                 {errorEnrolled && (
                     <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
                         <CardContent className="flex items-center gap-3 p-6">
@@ -308,6 +272,7 @@ function Workspace() {
                     </Card>
                 )}
 
+                {/* Enrolled Courses Content */}
                 {!isLoadingEnrolled && !errorEnrolled && (
                     <>
                         {enrolledCourses.length === 0 ? (
@@ -342,6 +307,7 @@ function Workspace() {
                 )}
             </div>
 
+            {/* User Created Courses Section */}
             <div>
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="font-bold text-xl">Your Created Courses</h2>
@@ -353,6 +319,7 @@ function Workspace() {
                     </p>
                 </div>
 
+                {/* User Courses Loading */}
                 {isLoadingUserCourses && (
                     <div className="space-y-4">
                         <div className="flex items-center gap-2 text-muted-foreground">
@@ -367,6 +334,7 @@ function Workspace() {
                     </div>
                 )}
 
+                {/* User Courses Error */}
                 {errorUserCourses && (
                     <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
                         <CardContent className="flex items-center gap-3 p-6">
@@ -387,6 +355,7 @@ function Workspace() {
                     </Card>
                 )}
 
+                {/* User Courses Content */}
                 {!isLoadingUserCourses && !errorUserCourses && (
                     <>
                         {userCourses.length === 0 ? (

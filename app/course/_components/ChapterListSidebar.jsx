@@ -7,20 +7,7 @@ import {
 } from "../../../@/components/ui/accordion";
 import { SelectedChapterIndexContext } from "../../../context/SelectedChapterIndexContext";
 import { CircularProgress } from "../../../@/components/ui/circular-progress";
-
-function normalizeChapterTitle(chapter, fallbackIndex) {
-  const rawTitle = chapter?.chapterName || 
-                   chapter?.courseData?.chapterName || 
-                   chapter?.rawChapterName || 
-                   '';
-  
-  const cleaned = rawTitle
-    .replace(/^chapter\s*\d+\s*[:\-–]\s*/i, '')
-    .replace(/^\d+\.\s*/, '')
-    .trim();
-  
-  return cleaned || `Chapter ${fallbackIndex + 1}`;
-}
+import { getDisplayTitle, sanitizeSubTopic } from "../../../@/lib/titleSanitizer";
 
 function getChapterSubTopics(chapter) {
   if (chapter?.subTopics && Array.isArray(chapter.subTopics) && chapter.subTopics.length > 0) {
@@ -54,7 +41,7 @@ function ChapterListSidebar({ courseInfo }) {
           ...chapter,
           uniqueKey: chapter?.chapterId || `chapter-${index}`,
           displayIndex: orderIndex,
-          normalizedTitle: normalizeChapterTitle(chapter, index),
+          normalizedTitle: getDisplayTitle(chapter, index),
           chapterSubTopics: getChapterSubTopics(chapter),
           originalIndex: index
         };
@@ -120,9 +107,11 @@ function ChapterListSidebar({ courseInfo }) {
                   <div className="">
                     {chapterSubTopics.length > 0 ? (
                       chapterSubTopics.map((topic, topicIndex) => {
-                        const topicText = typeof topic === 'string' 
+                        const rawText = typeof topic === 'string' 
                           ? topic 
                           : topic?.topic || topic?.name || '';
+                        
+                        const topicText = sanitizeSubTopic(rawText);
                         
                         if (!topicText) return null;
                         

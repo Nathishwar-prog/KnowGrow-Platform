@@ -1,4 +1,5 @@
 import { generateContent, parseJsonResponse } from "../../../@/lib/generateContent";
+import { sanitizeChapterTitle, sanitizeSubTopic } from "../../../@/lib/titleSanitizer";
 import axios from "axios";
 import { db } from "../../../config/db";
 import { coursesTable } from "../../../config/schema";
@@ -60,7 +61,7 @@ function extractCourseLanguage(courseTitle) {
     'Data Science', 'DevOps', 'Blockchain', 'Solidity', 'Web3'
   ];
   
-  const titleLower = courseTitle.toLowerCase();
+  const titleLower = courseTitle?.toLowerCase() || '';
   for (const lang of languageKeywords) {
     if (titleLower.includes(lang.toLowerCase())) {
       return lang;
@@ -178,27 +179,11 @@ async function fetchYoutubeVideos(courseLanguage, chapterTitle, topics, maxResul
   }
 }
 
-function normalizeChapterTitle(chapter) {
-  const rawTitle = chapter?.chapterName || chapter?.name || '';
-  
-  const cleaned = rawTitle
-    .replace(/^chapter\s*\d+\s*[:\-–]\s*/i, '')
-    .replace(/^\d+\.\s*/, '')
-    .trim();
-  
-  if (cleaned.length > 60) {
-    const shortened = cleaned.substring(0, 57) + '...';
-    return shortened;
-  }
-  
-  return cleaned || 'Untitled Chapter';
-}
-
 function normalizeSubTopics(chapter) {
   const topics = chapter?.topics || [];
   return topics.map(t => {
-    if (typeof t === 'string') return t;
-    return t?.name || t?.topic || String(t);
+    const raw = typeof t === 'string' ? t : (t?.name || t?.topic || String(t));
+    return sanitizeSubTopic(raw);
   }).filter(Boolean);
 }
 
@@ -264,7 +249,7 @@ export async function POST(req) {
           const chapter = courseJson.chapters[i];
           const chapterId = uuidv4();
           const rawChapterName = chapter?.chapterName || chapter?.name || `Chapter ${i + 1}`;
-          const normalizedTitle = normalizeChapterTitle(chapter);
+          const normalizedTitle = sanitizeChapterTitle(rawChapterName, i);
           const subTopics = normalizeSubTopics(chapter);
           const chapterNum = i + 1;
 

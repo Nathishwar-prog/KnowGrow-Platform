@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import GenerationExperience from "../../_components/GenerationExperience";
 
 function CourseInfo({ course, viewCourse }) {
     const courseLayout = course?.courseJson?.course;
@@ -150,6 +151,9 @@ function CourseInfo({ course, viewCourse }) {
         setProgress(0);
     }, []);
 
+    const hasContent = course?.courseContent && 
+        (Array.isArray(course?.courseContent) ? course?.courseContent?.length > 0 : Object.keys(course?.courseContent).length > 0);
+
     return (
         <div className='md:flex gap-5 items-center justify-between p-5 rounded-2xl shadow bg-card'>
             <div className='flex flex-col gap-3 flex-1'>
@@ -179,8 +183,16 @@ function CourseInfo({ course, viewCourse }) {
                     </div>
                 </div>
 
-                {!viewCourse && (!course?.courseContent || (Array.isArray(course?.courseContent) && course?.courseContent?.length === 0) || (typeof course?.courseContent === 'object' && Object.keys(course?.courseContent).length === 0)) ? (
-                    <div className="flex flex-col gap-2">
+                {!viewCourse && !hasContent ? (
+                    <div className="flex flex-col gap-4">
+                        {loading ? (
+                            <GenerationExperience 
+                                progress={progress} 
+                                progressMessage={progressMessage} 
+                                isVisible={loading} 
+                            />
+                        ) : null}
+                        
                         <div className="flex items-center gap-2">
                             <Button
                                 className="max-w-sm flex items-center gap-2"
@@ -210,29 +222,11 @@ function CourseInfo({ course, viewCourse }) {
                                 </Button>
                             )}
                         </div>
-                        {loading && progressMessage && (
-                            <div className="flex flex-col gap-2 max-w-md">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 flex-1 bg-secondary rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-emerald-500 transition-all duration-300 ease-out"
-                                            style={{ width: `${progress}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs text-muted-foreground min-w-[40px]">
-                                        {progress}%
-                                    </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground animate-pulse">
-                                    {progressMessage}
-                                </p>
-                            </div>
-                        )}
                     </div>
                 ) : (
                     <Link href={'/course/' + course?.cid}>
                         <Button className='bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700'>
-                            <PlayCircle className="mr-2 h-4 w-4" /> {course?.courseContent?.length > 0 ? 'Start Course' : 'Continue Learning'}
+                            <PlayCircle className="mr-2 h-4 w-4" /> {hasContent ? 'Start Course' : 'Continue Learning'}
                         </Button>
                     </Link>
                 )}
