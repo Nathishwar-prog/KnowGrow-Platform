@@ -6,6 +6,7 @@ import {
   AccordionTrigger,
 } from "../../../@/components/ui/accordion";
 import { SelectedChapterIndexContext } from "../../../context/SelectedChapterIndexContext";
+import { CircularProgress } from "../../../@/components/ui/circular-progress";
 
 function normalizeChapterTitle(chapter, fallbackIndex) {
   const rawTitle = chapter?.chapterName || 
@@ -61,13 +62,33 @@ function ChapterListSidebar({ courseInfo }) {
       .sort((a, b) => a.displayIndex - b.displayIndex);
   }, [courseContent]);
 
+  const progressValue = useMemo(() => {
+    const total = chaptersWithData.length;
+    if (total === 0) return 0;
+    return (completedChapter.length / total) * 100;
+  }, [chaptersWithData.length, completedChapter.length]);
+
   return (
     <div className="w-80 h-full p-0 overflow-hidden">
       <div className="bg-gradient-to-b from-emerald-600 to-emerald-700 text-white p-5">
-        <h2 className="my-1 font-bold text-xl">Chapters ({chaptersWithData.length})</h2>
-        <p className="text-emerald-100 text-xs">Follow step-by-step; completed chapters are highlighted.</p>
+        <div className="flex items-center gap-4">
+          <CircularProgress 
+            value={progressValue} 
+            size={60} 
+            strokeWidth={5}
+            showLabel={false}
+            gradientId="sidebar-progress"
+            className="[&_span]:text-lg [&_span]:!text-white"
+          />
+          <div>
+            <h2 className="font-bold text-lg">Course Progress</h2>
+            <p className="text-emerald-100 text-xs">
+              {completedChapter.length} of {chaptersWithData.length} chapters
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="h-[calc(100%-84px)] overflow-y-auto p-5 bg-secondary dark:bg-[color:oklch(0.18_0.03_150)]">
+      <div className="h-[calc(100%-100px)] overflow-y-auto p-5 bg-secondary dark:bg-[color:oklch(0.18_0.03_150)]">
         <div className="mb-3 flex items-center gap-2">
           <span className="inline-block h-2 w-2 rounded-full bg-lime-300"></span>
           <span className="text-xs text-emerald-700 dark:text-emerald-300">Interactive Syllabus</span>

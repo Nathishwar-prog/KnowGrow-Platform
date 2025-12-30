@@ -5,7 +5,8 @@ export const usersTable = pgTable("users", {
   name: varchar({ length: 255 }).notNull(),
   age: integer().notNull(),
   email: varchar({ length: 255 }).notNull().unique(),
-  subscriptionId: varchar({ length: 64 })
+  subscriptionId: varchar({ length: 64 }),
+  isOnboarded: boolean().default(false)
 });
 
 

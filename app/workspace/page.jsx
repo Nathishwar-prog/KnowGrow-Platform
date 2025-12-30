@@ -17,6 +17,7 @@ import { useUser } from "@clerk/nextjs";
 import axios from "axios";
 import AddNewCourseDialog from "./_components/AddNewCourseDialog";
 import LearningStreak from "./_components/LearningStreak";
+import { OnboardingTour } from "../../@/components/ui/onboarding-tour";
 
 
 function AchievementsSection({ achievements }) {
@@ -75,13 +76,39 @@ function Workspace() {
     const [errorEnrolled, setErrorEnrolled] = useState(null);
     const [errorUserCourses, setErrorUserCourses] = useState(null);
     const [errorAchievements, setErrorAchievements] = useState(null);
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
     const { user } = useUser();
 
     useEffect(() => {
         user && GetEnrolledCourses();
         user && GetUserCourses();
         user && GetUserAchievements();
+        user && checkOnboardingStatus();
     }, [user]);
+
+    const checkOnboardingStatus = async () => {
+        try {
+            setIsCheckingOnboarding(true);
+            const result = await axios.get('/api/user');
+            if (result.data && result.data.isOnboarded === false) {
+                setTimeout(() => setShowOnboarding(true), 500);
+            }
+        } catch (error) {
+            console.error('Error checking onboarding status:', error);
+        } finally {
+            setIsCheckingOnboarding(false);
+        }
+    };
+
+    const handleOnboardingComplete = async () => {
+        setShowOnboarding(false);
+        try {
+            await axios.patch('/api/user', { isOnboarded: true });
+        } catch (error) {
+            console.error('Error updating onboarding status:', error);
+        }
+    };
 
     const GetEnrolledCourses = async () => {
         try {
@@ -142,6 +169,11 @@ function Workspace() {
 
     return (
         <div>
+            <OnboardingTour 
+                isOpen={showOnboarding} 
+                onComplete={handleOnboardingComplete} 
+            />
+            
             <WelcomeBanner />
 
             {/* Study Timer */}

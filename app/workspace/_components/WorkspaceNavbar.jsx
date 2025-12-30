@@ -52,10 +52,11 @@ const NavDropdownItem = ({ title, icon: Icon, path, isActive, onClick }) => {
 };
 
 // --- Sub-component: DirectNavItem ---
-const DirectNavItem = ({ title, icon: Icon, path, isActive }) => {
+const DirectNavItem = ({ title, icon: Icon, path, isActive, onboardingId }) => {
   return (
     <Link
       href={path}
+      data-onboarding={onboardingId}
       className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
         isActive 
           ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
@@ -125,7 +126,10 @@ const WorkspaceNavDropdown = ({ label, items, pathname }) => {
 const CreateCourseButton = () => {
   return (
     <AddNewCourseDialog>
-      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl px-4 h-10 gap-2 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+      <Button 
+        data-onboarding="create-course"
+        className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl px-4 h-10 gap-2 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
+      >
         <Plus className="h-5 w-5" />
         <span className="hidden sm:inline">Create Course</span>
       </Button>
@@ -155,9 +159,9 @@ export default function WorkspaceNavbar() {
   ];
 
   const directItems = [
-    { title: 'AI Quiz', icon: BrainCircuit, path: '/workspace/ai-quiz' },
+    { title: 'AI Quiz', icon: BrainCircuit, path: '/workspace/ai-quiz', onboardingId: 'quiz-ai' },
     { title: 'Project Guidance', icon: Lightbulb, path: '/workspace/project-guidance' },
-    { title: 'Doubt Clarification', icon: HelpCircle, path: '/workspace/doubt-clarification' },
+    { title: 'Doubt Clarification', icon: HelpCircle, path: '/workspace/doubt-clarification', onboardingId: 'doubt-ai' },
   ];
 
   const resourceItems = [
@@ -193,7 +197,7 @@ export default function WorkspaceNavbar() {
             
             <div className="flex items-center gap-1">
               {directItems.map(item => (
-                <DirectNavItem key={item.path} {...item} isActive={pathname === item.path} />
+                <DirectNavItem key={item.path} {...item} isActive={pathname === item.path} onboardingId={item.onboardingId} />
               ))}
             </div>
 
