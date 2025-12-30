@@ -1,81 +1,114 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { 
+  LayoutDashboard, 
+  Book, 
+  Compass, 
+  FileQuestion, 
+  PencilRulerIcon, 
+  BookOpen, 
+  WalletCards, 
+  UserCircle2Icon,
   BrainCircuit, 
   Lightbulb, 
   HelpCircle, 
+  BarChart3,
   Code, 
   Sun, 
   Moon,
-  Home,
+  ChevronDown,
+  Sparkles,
+  FileText,
+  Library,
   Menu,
   X,
-  Sparkles
+  Plus
 } from "lucide-react";
 import { Button } from "../../../@/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "../../../@/components/ui/sheet";
+import AddNewCourseDialog from "./AddNewCourseDialog";
 
-// --- Sub-component: NavActionItem ---
-const NavActionItem = ({ name, icon: Icon, path, isActive }) => {
+// --- Sub-component: NavDropdownItem ---
+const NavDropdownItem = ({ title, icon: Icon, path, isActive, onClick }) => {
   return (
     <Link
       href={path}
-      className={`relative group flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 ${
+      onClick={onClick}
+      className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-all duration-200 rounded-lg ${
         isActive 
           ? "bg-primary/10 text-primary shadow-sm" 
           : "text-muted-foreground hover:bg-accent hover:text-foreground"
       }`}
-      aria-label={name}
     >
-      <Icon className={`h-5 w-5 transition-transform duration-300 group-hover:scale-110 ${isActive ? "text-primary" : ""}`} />
-      <span className="font-semibold text-sm tracking-tight">{name}</span>
-      {isActive && (
-        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-full animate-in fade-in zoom-in duration-300" />
-      )}
+      <Icon className={`h-4.5 w-4.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+      <span>{title}</span>
+      {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
     </Link>
   );
 };
 
-// --- Sub-component: UtilityButton ---
-const UtilityButton = ({ icon: Icon, onClick, isActive, label, title }) => {
+// --- Sub-component: WorkspaceNavDropdown ---
+const WorkspaceNavDropdown = ({ label, items, pathname }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const hasActiveItem = items.some(item => pathname === item.path || (item.path !== '/workspace' && pathname.startsWith(item.path)));
+
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={onClick}
-      className={`h-10 w-10 rounded-xl transition-all duration-300 ${isActive ? "bg-accent text-primary shadow-inner" : "text-muted-foreground hover:bg-accent hover:text-foreground"}`}
-      aria-label={label}
-      title={title}
-    >
-      <Icon className="h-5 w-5 transition-transform duration-300 hover:scale-110" />
-    </Button>
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 ${
+          hasActiveItem 
+            ? "bg-primary/5 text-primary" 
+            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+        }`}
+      >
+        {label}
+        <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-2 w-64 bg-background border rounded-2xl shadow-2xl p-2 z-[100] animate-in fade-in zoom-in-95 duration-200">
+          <div className="max-h-[70vh] overflow-y-auto custom-scrollbar flex flex-col gap-1">
+            {items.map((item) => (
+              <NavDropdownItem 
+                key={item.path} 
+                {...item} 
+                isActive={pathname === item.path || (item.path !== '/workspace' && pathname.startsWith(item.path))}
+                onClick={() => setIsOpen(false)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
-// --- Sub-component: UserProfileDropdown ---
-const UserProfileDropdown = () => {
+// --- Sub-component: CreateCourseButton ---
+const CreateCourseButton = () => {
   return (
-    <div className="flex items-center pl-2 ml-1 border-l border-border/50">
-      <UserButton 
-        afterSignOutUrl="/"
-        appearance={{
-          elements: {
-            userButtonAvatarBox: "h-9 w-9 border-2 border-primary/20 hover:border-primary/50 transition-all duration-300 hover:scale-105 shadow-sm"
-          }
-        }}
-      />
-    </div>
+    <AddNewCourseDialog>
+      <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl px-4 h-10 gap-2 shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+        <Plus className="h-5 w-5" />
+        <span className="hidden sm:inline">Create Course</span>
+      </Button>
+    </AddNewCourseDialog>
   );
 };
 
@@ -84,117 +117,163 @@ export default function WorkspaceNavbar() {
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isEditorOpen, setIsEditorOpen] = useState(false); // Local state for demo purposes
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const aiActions = [
-    { name: "AI Quiz", icon: BrainCircuit, path: "/workspace/ai-quiz" },
-    { name: "Project Guidance", icon: Lightbulb, path: "/workspace/project-guidance" },
-    { name: "Doubt Clarification", icon: HelpCircle, path: "/workspace/doubt-clarification" },
+  const workspaceItems = [
+    { title: 'Dashboard', icon: LayoutDashboard, path: '/workspace' },
+    { title: 'My Learning', icon: Book, path: '/workspace/my-learning' },
+    { title: 'Explore Courses', icon: Compass, path: '/workspace/explore' },
+    { title: 'My Courses', icon: BookOpen, path: '/workspace/my-courses' },
+    { title: 'Quizzes', icon: FileQuestion, path: '/workspace/quizzes' },
+    { title: 'AI Tools', icon: PencilRulerIcon, path: '/workspace/ai-tools' },
+    { title: 'AI Quiz', icon: BrainCircuit, path: '/workspace/ai-quiz' },
+    { title: 'Project Guidance', icon: Lightbulb, path: '/workspace/project-guidance' },
+    { title: 'Doubt Clarification', icon: HelpCircle, path: '/workspace/doubt-clarification' },
+    { title: 'Progress', icon: BarChart3, path: '/workspace/progress' },
+    { title: 'Billing', icon: WalletCards, path: '/workspace/billing' },
+    { title: 'Profile', icon: UserCircle2Icon, path: '/workspace/profile' },
+  ];
+
+  const resourceItems = [
+    { title: 'Cheatsheets', icon: BookOpen, path: '/workspace/cheatsheet-folder' },
+    { title: 'Docs', icon: FileText, path: '/workspace/docs' },
+    { title: 'References', icon: Library, path: '/workspace/references' },
   ];
 
   return (
-    <header className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+    <header className={`sticky top-0 z-[60] w-full transition-all duration-300 ${
       isScrolled 
         ? "bg-background/80 backdrop-blur-xl border-b shadow-lg shadow-black/5" 
         : "bg-background border-b"
     }`}>
-      <div className="max-w-7xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between">
+      <div className="max-w-screen-2xl mx-auto px-4 h-16 flex items-center justify-between">
         
-        {/* LEFT: Logo */}
-        <div className="flex items-center">
-          <Link href="/workspace" className="flex items-center gap-2 group mr-8">
+        {/* LEFT: Logo & Navigation */}
+        <div className="flex items-center gap-2">
+          <Link href="/workspace" className="flex items-center gap-2 group mr-6">
             <div className="h-9 w-9 bg-primary rounded-xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform duration-300">
               <Sparkles className="h-5 w-5" />
             </div>
-            <span className="text-xl font-black tracking-tighter bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent hidden sm:block">
+            <span className="text-xl font-black tracking-tighter hidden sm:block">
               KnowGrow
             </span>
           </Link>
+
+          {/* Desktop Nav Dropdowns */}
+          <div className="hidden md:flex items-center gap-2">
+            <WorkspaceNavDropdown label="Workspace" items={workspaceItems} pathname={pathname} />
+            <WorkspaceNavDropdown label="Resources" items={resourceItems} pathname={pathname} />
+          </div>
         </div>
 
-        {/* CENTER: AI Main Actions (Desktop) */}
-        <nav className="hidden md:flex items-center gap-2">
-          {aiActions.map((action) => (
-            <NavActionItem 
-              key={action.path}
-              {...action}
-              isActive={pathname === action.path}
-            />
-          ))}
-        </nav>
-
-        {/* RIGHT: Utilities & Profile */}
-        <div className="flex items-center gap-1.5 sm:gap-3">
+        {/* RIGHT: Utilities, Create, Profile */}
+        <div className="flex items-center gap-2 sm:gap-4">
           
-          <div className="flex items-center gap-1.5 sm:gap-2 pr-1 sm:pr-2">
-            <UtilityButton 
-              icon={Code} 
-              onClick={() => setIsEditorOpen(!isEditorOpen)}
-              isActive={isEditorOpen}
-              label="Toggle Code Editor"
-              title="Code Editor"
-            />
+          <div className="hidden sm:flex items-center gap-2">
+            <CreateCourseButton />
             
-            <UtilityButton 
-              icon={theme === "dark" ? Sun : Moon} 
+            <div className="h-6 w-px bg-border/60 mx-1" />
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-300"
+              title="Code Editor"
+            >
+              <Code className="h-5 w-5" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              label="Toggle Theme"
+              className="h-10 w-10 rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-300"
               title="Toggle Theme"
+            >
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+          </div>
+
+          <div className="flex items-center pl-2 ml-1 border-l border-border/50">
+            <UserButton 
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  userButtonAvatarBox: "h-9 w-9 border-2 border-primary/20 hover:border-primary/50 transition-all duration-300 hover:scale-105 shadow-sm"
+                }
+              }}
             />
           </div>
 
-          <UserProfileDropdown />
-
-          {/* Mobile Menu */}
-          <div className="md:hidden ml-1">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="top" className="w-full border-b shadow-2xl rounded-b-[32px] animate-in slide-in-from-top duration-500">
-                <SheetHeader className="pb-6 border-b border-border/50">
-                  <SheetTitle className="flex items-center gap-2">
-                    <Sparkles className="h-6 w-6 text-primary" />
-                    <span className="font-black tracking-tighter uppercase text-lg">AI Tools</span>
-                  </SheetTitle>
-                </SheetHeader>
-                <div className="py-8 flex flex-col gap-3">
-                  {aiActions.map((action) => {
-                    const isActive = pathname === action.path;
-                    return (
-                      <Link 
-                        key={action.path} 
-                        href={action.path}
-                        className={`flex items-center justify-between px-6 py-5 rounded-[20px] transition-all duration-300 ${
-                          isActive 
-                            ? "bg-primary text-primary-foreground shadow-xl shadow-primary/20 scale-105" 
-                            : "bg-accent/50 text-muted-foreground hover:bg-accent hover:text-foreground"
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <action.icon className="h-6 w-6" />
-                          <span className="font-bold text-lg">{action.name}</span>
-                        </div>
-                        <Sparkles className={`h-4 w-4 ${isActive ? "opacity-100 animate-pulse" : "opacity-0"}`} />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+          {/* Mobile Menu Toggle */}
+          <button 
+            className="md:hidden p-2 rounded-xl hover:bg-accent transition-colors"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 top-16 bg-background z-[70] overflow-y-auto p-4 flex flex-col gap-6 animate-in slide-in-from-right duration-300">
+          <div className="flex flex-col gap-4">
+            <div className="px-2">
+               <CreateCourseButton />
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <h3 className="px-4 text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Workspace</h3>
+                <div className="grid grid-cols-1 gap-1">
+                  {workspaceItems.map(item => (
+                    <NavDropdownItem 
+                      key={item.path} 
+                      {...item} 
+                      isActive={pathname === item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="px-4 text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Resources</h3>
+                <div className="grid grid-cols-1 gap-1">
+                  {resourceItems.map(item => (
+                    <NavDropdownItem 
+                      key={item.path} 
+                      {...item} 
+                      isActive={pathname === item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t flex items-center justify-between px-4">
+                <span className="text-sm font-medium">Appearance</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="rounded-xl gap-2"
+                >
+                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
