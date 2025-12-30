@@ -35,21 +35,38 @@ const TypewriterHeader = ({ content, onComplete, speed = 20 }) => {
   return <>{displayed}</>;
 };
 
-const QuizGenerateAI = ({ isOpen, onClose }) => {
-  const [quizData, setQuizData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [copiedQuizId, setCopiedQuizId] = useState(null);
-  const [activeStep, setActiveStep] = useState(1);
-  
-  const [formData, setFormData] = useState({
-    topic: "",
-    difficulty: "medium",
-    questionCount: 5,
-    questionTypes: ["multiple_choice", "short_answer"]
-  });
+  const QuizGenerateAI = ({ isOpen: propIsOpen, onClose }) => {
+    const [isOpen, setIsOpen] = useState(propIsOpen);
+    const [quizData, setQuizData] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
+    const [copiedQuizId, setCopiedQuizId] = useState(null);
+    const [activeStep, setActiveStep] = useState(1);
+    
+    const [formData, setFormData] = useState({
+      topic: "",
+      difficulty: "medium",
+      questionCount: 5,
+      questionTypes: ["multiple_choice", "short_answer"]
+    });
 
-  const generateQuiz = async () => {
+    useEffect(() => {
+      setIsOpen(propIsOpen);
+    }, [propIsOpen]);
+
+    const handleClose = () => {
+      setIsOpen(false);
+      resetQuiz();
+      setFormData({
+        topic: "",
+        difficulty: "medium",
+        questionCount: 5,
+        questionTypes: ["multiple_choice", "short_answer"]
+      });
+      if (onClose) onClose();
+    };
+
+    const generateQuiz = async () => {
     if (!formData.topic.trim()) return;
 
     setIsLoading(true);
@@ -160,7 +177,7 @@ const QuizGenerateAI = ({ isOpen, onClose }) => {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={onClose} 
+            onClick={handleClose} 
             className="h-11 w-11 rounded-2xl bg-destructive/5 text-destructive hover:bg-destructive hover:text-white transition-all duration-300 shadow-sm"
           >
             <X className="h-6 w-6" />

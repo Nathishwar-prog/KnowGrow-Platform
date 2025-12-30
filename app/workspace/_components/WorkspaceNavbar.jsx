@@ -163,6 +163,7 @@ export default function WorkspaceNavbar() {
   const resourceItems = [
     { title: 'Docs', icon: FileText, path: '/workspace/resources/docs' },
     { title: 'References', icon: Library, path: '/workspace/resources/references' },
+    { title: 'Cheatsheets', icon: Library, path: '/workspace/cheatsheet-folder' },
   ];
 
   return (

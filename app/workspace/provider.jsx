@@ -1,7 +1,4 @@
-import { Sidebar } from "lucide-react";
 import React from "react";
-import { SidebarProvider, SidebarTrigger } from "../../@/components/ui/sidebar";
-import AppSidebar from "./_components/AppSidebar";
 import WorkspaceNavbar from "./_components/WorkspaceNavbar";
 
 function WorkspaceProvider({ children }) {

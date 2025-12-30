@@ -8,20 +8,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Loader2, Target, BookOpen, ArrowLeft, Sparkles, RefreshCw, Copy, Check } from "lucide-react";
 import ProjectGuidanceRenderer from "./ProjectGuidanceRenderer";
 
-const ProjectGuidanceAI = ({ isOpen, onClose }) => {
-  const [projectGuidance, setProjectGuidance] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [copiedMessageId, setCopiedMessageId] = useState(null);
-  const [projectForm, setProjectForm] = useState({
-    description: "",
-    skillLevel: "intermediate",
-    technologies: [],
-    timeline: "flexible"
-  });
-  const [showForm, setShowForm] = useState(true);
-  const [error, setError] = useState(null);
+  const ProjectGuidanceAI = ({ isOpen: propIsOpen, onClose }) => {
+    const [isOpen, setIsOpen] = useState(propIsOpen);
+    const [projectGuidance, setProjectGuidance] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [copiedMessageId, setCopiedMessageId] = useState(null);
+    const [projectForm, setProjectForm] = useState({
+      description: "",
+      skillLevel: "intermediate",
+      technologies: [],
+      timeline: "flexible"
+    });
+    const [showForm, setShowForm] = useState(true);
+    const [error, setError] = useState(null);
 
-  const copyToClipboard = async (text) => {
+    useEffect(() => {
+      setIsOpen(propIsOpen);
+    }, [propIsOpen]);
+
+    const handleClose = () => {
+      setIsOpen(false);
+      handleReset();
+      if (onClose) onClose();
+    };
+
+    const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(text, null, 2));
       setCopiedMessageId("guidance");
@@ -135,7 +146,7 @@ const ProjectGuidanceAI = ({ isOpen, onClose }) => {
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={onClose}
+              onClick={handleClose}
               className="h-9 w-9 p-0 text-lg hover:bg-destructive/10 hover:text-destructive"
             >
               ×

@@ -44,16 +44,28 @@ const TypewriterText = ({ content, onComplete, speed = 10, isLatest = false }) =
   return <MarkdownRenderer content={displayedContent} />;
 };
 
-const DoubtClearAI = ({ isOpen, onClose }) => {
-  const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
-  const [copiedMessageId, setCopiedMessageId] = useState(null);
-  const [showJumpButton, setShowJumpButton] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
-  
-  const scrollAreaRef = useRef(null);
+  const DoubtClearAI = ({ isOpen: propIsOpen, onClose }) => {
+    const [isOpen, setIsOpen] = useState(propIsOpen);
+    const [messages, setMessages] = useState([]);
+    const [inputMessage, setInputMessage] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+    const [isTyping, setIsTyping] = useState(false);
+    const [copiedMessageId, setCopiedMessageId] = useState(null);
+    const [showJumpButton, setShowJumpButton] = useState(false);
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    
+    useEffect(() => {
+      setIsOpen(propIsOpen);
+    }, [propIsOpen]);
+
+    const handleClose = () => {
+      setIsOpen(false);
+      clearChat();
+      setInputMessage("");
+      if (onClose) onClose();
+    };
+
+    const scrollAreaRef = useRef(null);
   const messagesEndRef = useRef(null);
   const { theme } = useTheme();
 
@@ -211,7 +223,7 @@ const DoubtClearAI = ({ isOpen, onClose }) => {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={onClose} 
+              onClick={handleClose} 
               className="h-11 w-11 rounded-2xl bg-destructive/5 text-destructive hover:bg-destructive hover:text-white transition-all duration-300 shadow-sm"
             >
               <X className="h-6 w-6" />

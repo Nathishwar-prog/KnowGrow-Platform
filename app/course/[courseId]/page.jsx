@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Appheader from "../../workspace/_components/AppHeader";
+import WorkspaceNavbar from "../../workspace/_components/WorkspaceNavbar";
 import ChapterListSidebar from "../_components/ChapterListSidebar";
 import ChapterContent from "../_components/ChapterContent";
 import { useParams } from "next/navigation";
@@ -58,14 +58,14 @@ function Course() {
     );
   }
 
-  // render sidebar and content only when courseInfo is ready
-  return (
-    <div className="h-screen flex flex-col">
-      {/* Header at the top */}
-      <Appheader hideSidebar={true} />
+    // render sidebar and content only when courseInfo is ready
+    return (
+      <div className="h-screen flex flex-col">
+        {/* Header at the top */}
+        <WorkspaceNavbar />
 
-      {/* Sidebar + Content */}
-      <div className="flex flex-1">
+        {/* Sidebar + Content */}
+        <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && (
           <div className="sticky top-0 h-[calc(100vh-56px)] overflow-y-auto">
             <ChapterListSidebar courseInfo={courseInfo} />
