@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import WelcomeBanner from "../_components/WelcomeBanner";
 import EnrollCourseCard from "../_components/EnrollCourseCard";
 import { Skeleton } from "../../../@/components/ui/skeleton";
@@ -8,32 +8,54 @@ import { Card, CardContent } from "../../../@/components/ui/card";
 import { Button } from "../../../@/components/ui/button";
 import { Loader2, AlertCircle, RefreshCw, BookOpen } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import axios from "axios";
+import { api, cancelRequest } from "../../../@/lib/api";
 
 function MyLearning() {
     const [enrolledCourses, setEnrolledCourses] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const { user } = useUser();
+    const mountedRef = useRef(true);
 
     useEffect(() => {
-        user && GetEnrolledCourses();
+        mountedRef.current = true;
+        if (user) {
+            GetEnrolledCourses();
+        }
+
+        return () => {
+            mountedRef.current = false;
+            cancelRequest('my-learning-courses');
+        };
     }, [user]);
 
-    const GetEnrolledCourses = async () => {
+    const GetEnrolledCourses = useCallback(async () => {
+        if (!mountedRef.current) return;
+        
         try {
             setIsLoading(true);
             setError(null);
-            const result = await axios.get('/api/enroll-course');
-            console.log(result.data);
-            setEnrolledCourses(result.data);
-        } catch (error) {
-            console.error('Error fetching enrolled courses:', error);
-            setError('Failed to load your enrolled courses. Please try again.');
+            
+            const result = await api.get('/api/enroll-course', {
+                type: 'dashboard',
+                key: 'my-learning-courses'
+            });
+            
+            if (!mountedRef.current) return;
+            
+            if (result.success) {
+                setEnrolledCourses(Array.isArray(result.data) ? result.data : []);
+            } else {
+                setError(result.error || 'Failed to load enrolled courses.');
+            }
+        } catch (err) {
+            if (mountedRef.current) {
+                setError('Failed to load your enrolled courses. Please try again.');
+            }
         } finally {
-            setIsLoading(false);
+            if (mountedRef.current) setIsLoading(false);
         }
-    };
+    }, []);
 
     return ( 
         <div>
@@ -52,7 +74,6 @@ function MyLearning() {
                 </Button>
             </div>
 
-            {/* Loading State */}
             {isLoading && (
                 <div className="space-y-4">
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -67,7 +88,6 @@ function MyLearning() {
                 </div>
             )}
 
-            {/* Error State */}
             {error && (
                 <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
                     <CardContent className="flex items-center gap-3 p-6">
@@ -88,10 +108,8 @@ function MyLearning() {
                 </Card>
             )}
 
-            {/* Courses Content */}
             {!isLoading && !error && (
                 <>
-                    {/* Results Count */}
                     <div className="mb-4">
                         <p className="text-sm text-muted-foreground">
                             {enrolledCourses.length > 0 ? 
@@ -101,7 +119,6 @@ function MyLearning() {
                         </p>
                     </div>
 
-                    {/* No Enrolled Courses */}
                     {enrolledCourses.length === 0 && (
                         <Card className="border-dashed">
                             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -120,7 +137,6 @@ function MyLearning() {
                         </Card>
                     )}
 
-                    {/* Enrolled Courses */}
                     {enrolledCourses.length > 0 && (
                         <div className="mt-3">
                             <h2 className='font-bold text-xl bg-gradient-to-r from-emerald-500 to-emerald-700 bg-clip-text text-transparent mb-4'>

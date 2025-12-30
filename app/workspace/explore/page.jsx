@@ -1,14 +1,14 @@
 "use client"
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Input } from "../../../@/components/ui/input";
 import { Button } from "../../../@/components/ui/button";
 import { Search, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
-import axios from "axios";
 import CourseCard from "../_components/CourseCard";
 import { Skeleton } from "../../../@/components/ui/skeleton";
 import { Card, CardContent } from "../../../@/components/ui/card";
+import { api, cancelRequest } from "../../../@/lib/api";
 
 function Explore() {
     const [courseList, setCourseList] = useState([]);
@@ -18,41 +18,77 @@ function Explore() {
     const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState(null);
     const { user } = useUser();
+    const mountedRef = useRef(true);
+    const searchTimeoutRef = useRef(null);
 
     useEffect(() => {
-        user && GetCourseList();
+        mountedRef.current = true;
+        if (user) {
+            GetCourseList();
+        }
+
+        return () => {
+            mountedRef.current = false;
+            cancelRequest('explore-courses');
+            cancelRequest('explore-search');
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
     }, [user]);
 
-    // Debounced search effect
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        searchTimeoutRef.current = setTimeout(() => {
             if (searchQuery.trim() === "") {
                 setFilteredCourses(courseList);
             } else {
                 handleSearch();
             }
-        }, 300); // 300ms debounce
+        }, 300);
 
-        return () => clearTimeout(timeoutId);
-    }, [searchQuery]);
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [searchQuery, courseList]);
 
-    const GetCourseList = async () => {
+    const GetCourseList = useCallback(async () => {
+        if (!mountedRef.current) return;
+        
         try {
             setIsLoading(true);
             setError(null);
-            const result = await axios.get('/api/courses?courseId=0');
-            console.log(result.data);
-            setCourseList(result.data);
-            setFilteredCourses(result.data);
-        } catch (error) {
-            console.error('Error fetching courses:', error);
-            setError('Failed to load courses. Please try again.');
+            
+            const result = await api.get('/api/courses?courseId=0', {
+                type: 'courses',
+                key: 'explore-courses'
+            });
+            
+            if (!mountedRef.current) return;
+            
+            if (result.success) {
+                const courses = Array.isArray(result.data) ? result.data : [];
+                setCourseList(courses);
+                setFilteredCourses(courses);
+            } else {
+                setError(result.error || 'Failed to load courses.');
+            }
+        } catch (err) {
+            if (mountedRef.current) {
+                setError('Failed to load courses. Please try again.');
+            }
         } finally {
-            setIsLoading(false);
+            if (mountedRef.current) setIsLoading(false);
         }
-    };
+    }, []);
 
     const handleSearch = useCallback(async () => {
+        if (!mountedRef.current) return;
         if (searchQuery.trim() === "") {
             setFilteredCourses(courseList);
             return;
@@ -60,26 +96,46 @@ function Explore() {
 
         setIsSearching(true);
         try {
-            // Use server-side search for better performance
-            const result = await axios.get(`/api/courses?courseId=0&search=${encodeURIComponent(searchQuery)}`);
-            setFilteredCourses(result.data);
-        } catch (error) {
-            console.error('Search error:', error);
-            // Fallback to client-side search if server search fails
-            const filtered = courseList.filter(course => {
-                const courseJson = course?.courseJson?.course;
-                const searchLower = searchQuery.toLowerCase();
-                
-                return (
-                    courseJson?.name?.toLowerCase().includes(searchLower) ||
-                    courseJson?.description?.toLowerCase().includes(searchLower) ||
-                    course?.name?.toLowerCase().includes(searchLower) ||
-                    course?.description?.toLowerCase().includes(searchLower)
-                );
+            const result = await api.get(`/api/courses?courseId=0&search=${encodeURIComponent(searchQuery)}`, {
+                type: 'courses',
+                key: 'explore-search'
             });
-            setFilteredCourses(filtered);
+            
+            if (!mountedRef.current) return;
+            
+            if (result.success) {
+                setFilteredCourses(Array.isArray(result.data) ? result.data : []);
+            } else {
+                const filtered = courseList.filter(course => {
+                    const courseJson = course?.courseJson?.course;
+                    const searchLower = searchQuery.toLowerCase();
+                    
+                    return (
+                        courseJson?.name?.toLowerCase().includes(searchLower) ||
+                        courseJson?.description?.toLowerCase().includes(searchLower) ||
+                        course?.name?.toLowerCase().includes(searchLower) ||
+                        course?.description?.toLowerCase().includes(searchLower)
+                    );
+                });
+                setFilteredCourses(filtered);
+            }
+        } catch (err) {
+            if (mountedRef.current) {
+                const filtered = courseList.filter(course => {
+                    const courseJson = course?.courseJson?.course;
+                    const searchLower = searchQuery.toLowerCase();
+                    
+                    return (
+                        courseJson?.name?.toLowerCase().includes(searchLower) ||
+                        courseJson?.description?.toLowerCase().includes(searchLower) ||
+                        course?.name?.toLowerCase().includes(searchLower) ||
+                        course?.description?.toLowerCase().includes(searchLower)
+                    );
+                });
+                setFilteredCourses(filtered);
+            }
         } finally {
-            setIsSearching(false);
+            if (mountedRef.current) setIsSearching(false);
         }
     }, [searchQuery, courseList]);
 
@@ -104,7 +160,6 @@ function Explore() {
                 </Button>
             </div>
             
-            {/* Enhanced Search Bar */}
             <div className='flex gap-3 max-w-2xl mb-6'>
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -130,7 +185,6 @@ function Explore() {
                 </Button>
             </div>
 
-            {/* Loading State */}
             {isLoading && (
                 <div className="space-y-4">
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -145,7 +199,6 @@ function Explore() {
                 </div>
             )}
 
-            {/* Error State */}
             {error && (
                 <Card className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
                     <CardContent className="flex items-center gap-3 p-6">
@@ -166,10 +219,8 @@ function Explore() {
                 </Card>
             )}
 
-            {/* Courses Grid */}
             {!isLoading && !error && (
                 <>
-                    {/* Results Count */}
                     <div className="mb-4">
                         <p className="text-sm text-muted-foreground">
                             {searchQuery ? (
@@ -180,7 +231,6 @@ function Explore() {
                         </p>
                     </div>
 
-                    {/* No Results */}
                     {filteredCourses.length === 0 && !isLoading && (
                         <Card className="border-dashed">
                             <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -207,7 +257,6 @@ function Explore() {
                         </Card>
                     )}
 
-                    {/* Courses Grid */}
                     {filteredCourses.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
                             {filteredCourses.map((course, index) => (
