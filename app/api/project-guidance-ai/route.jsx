@@ -1,29 +1,75 @@
 import { NextResponse } from "next/server";
 
-const PROJECT_GUIDANCE_PROMPT = `You are an expert project mentor and technical advisor specializing in guiding students through complex projects. Your goal is to provide comprehensive, step-by-step guidance that helps students successfully complete their projects.
+const PROJECT_GUIDANCE_PROMPT = `You are an expert project mentor and technical advisor. Your goal is to provide comprehensive, structured project guidance.
 
-When providing project guidance:
+CRITICAL: You MUST respond with a valid JSON object following this EXACT structure. Do not include any text before or after the JSON.
 
-1. **Analyze the project requirements** thoroughly
-2. **Break down the project** into manageable phases and milestones
-3. **Provide detailed step-by-step instructions** with clear deliverables
-4. **Include relevant code examples** and best practices
-5. **Create visual project flowcharts** using Mermaid syntax
-6. **Suggest appropriate technologies and tools**
-7. **Identify potential challenges** and provide solutions
-8. **Include testing and deployment strategies**
-9. **Provide learning resources** and references
-10. **Adapt guidance** based on student's skill level and feedback
+{
+  "projectTitle": "Clear, descriptive project title",
+  "overview": "2-3 sentence summary of the project and its goals",
+  "techStack": ["Technology 1", "Technology 2", "Technology 3"],
+  "architecture": {
+    "frontend": ["Component/feature 1", "Component/feature 2"],
+    "backend": ["API/service 1", "API/service 2"],
+    "database": ["Table/model 1", "Table/model 2"]
+  },
+  "stepByStepPlan": [
+    {
+      "step": 1,
+      "title": "Phase title",
+      "description": "Detailed description of what to do in this phase",
+      "deliverables": ["Deliverable 1", "Deliverable 2"],
+      "estimatedTime": "1-2 days",
+      "codeSnippet": "Optional: key code example for this step"
+    }
+  ],
+  "milestones": [
+    {
+      "name": "Milestone name",
+      "description": "What should be completed",
+      "checkpoints": ["Checkpoint 1", "Checkpoint 2"]
+    }
+  ],
+  "commonMistakes": [
+    {
+      "mistake": "What developers often do wrong",
+      "solution": "How to avoid or fix it"
+    }
+  ],
+  "bestPractices": [
+    {
+      "practice": "Best practice title",
+      "description": "Why it matters and how to implement"
+    }
+  ],
+  "nextImprovements": [
+    {
+      "improvement": "Future enhancement",
+      "difficulty": "easy|medium|hard",
+      "description": "Brief explanation"
+    }
+  ],
+  "resources": [
+    {
+      "title": "Resource name",
+      "type": "documentation|tutorial|tool",
+      "url": "Optional URL"
+    }
+  ]
+}
 
-Response Format:
-- Use clear headings and structured sections
-- Include code blocks with proper syntax highlighting
-- Use Mermaid diagrams for project flow and architecture
-- Provide checklists for each phase
-- Include troubleshooting tips
-- End with next steps and success criteria
+Guidelines:
+- Provide 5-8 step-by-step phases
+- Include 3-5 milestones
+- List 3-5 common mistakes
+- Suggest 4-6 best practices
+- Recommend 3-5 future improvements
+- Include 3-5 helpful resources
+- Adapt complexity based on skill level
+- Include practical code snippets where helpful
+- Be specific and actionable
 
-Remember: Be encouraging, provide practical advice, and help students build confidence while learning.`;
+IMPORTANT: Return ONLY the JSON object, no markdown formatting, no code blocks, just pure JSON.`;
 
 export async function POST(req) {
   try {
@@ -85,15 +131,44 @@ Please provide comprehensive project guidance following the format above.`,
       throw new Error(`OpenRouter API Error: ${result.error?.message || "Unknown error"}`);
     }
 
-    // --- 🧾 Extract model output ---
-    const aiResponse =
-      result?.choices?.[0]?.message?.content ||
-      "I'm sorry, I couldn't generate project guidance. Please try again.";
+    const rawContent = result?.choices?.[0]?.message?.content || "";
+    
+    let structuredGuidance;
+    try {
+      let jsonString = rawContent.trim();
+      if (jsonString.startsWith("```json")) {
+        jsonString = jsonString.slice(7);
+      }
+      if (jsonString.startsWith("```")) {
+        jsonString = jsonString.slice(3);
+      }
+      if (jsonString.endsWith("```")) {
+        jsonString = jsonString.slice(0, -3);
+      }
+      jsonString = jsonString.trim();
+      
+      structuredGuidance = JSON.parse(jsonString);
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      structuredGuidance = {
+        projectTitle: projectDescription?.slice(0, 50) || "Your Project",
+        overview: rawContent.slice(0, 300),
+        techStack: technologies.length > 0 ? technologies : ["To be determined"],
+        architecture: { frontend: [], backend: [], database: [] },
+        stepByStepPlan: [{ step: 1, title: "Planning", description: rawContent, deliverables: [] }],
+        milestones: [],
+        commonMistakes: [],
+        bestPractices: [],
+        nextImprovements: [],
+        resources: [],
+        _rawFallback: true
+      };
+    }
 
-    // --- ✅ Return JSON response ---
     return NextResponse.json({
       success: true,
-      response: aiResponse,
+      response: structuredGuidance,
+      isStructured: !structuredGuidance._rawFallback,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
