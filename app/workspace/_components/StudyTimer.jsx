@@ -84,115 +84,115 @@ const StudyTimer = () => {
   const circumference = 2 * Math.PI * radius;
   const progressOffset = circumference - ((initialTime - timeLeft) / initialTime) * circumference;
 
-  return (
-    <Card className="mb-8 border-none shadow-xl bg-white dark:bg-gray-900 overflow-hidden relative">
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-              <Timer className="w-6 h-6" /> Study Timer
-            </h2>
-            <p className="text-gray-500 text-sm">Target: Focus & Consistency</p>
-          </div>
-          <div className="text-right">
-            <div className="text-3xl font-mono font-bold text-gray-700 dark:text-gray-200">
-              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+    return (
+      <Card className="mb-8 border border-border/50 shadow-xl bg-card overflow-hidden relative">
+        <CardContent className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Timer className="w-6 h-6 text-primary" /> Study Timer
+              </h2>
+              <p className="text-muted-foreground text-sm">Target: Focus & Consistency</p>
             </div>
-            <div className="text-xs text-gray-400 font-medium uppercase tracking-widest">
-              {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-          {/* Circular Timer Display */}
-          <div className="relative w-64 h-64 flex items-center justify-center">
-            {/* Background Ring */}
-            <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="50%" cy="50%" r={radius}
-                className="stroke-gray-100 dark:stroke-gray-800 fill-none"
-                strokeWidth="12"
-              />
-              {/* Progress Ring */}
-              <circle
-                cx="50%" cy="50%" r={radius}
-                className={`fill-none transition-all duration-1000 ease-linear ${modes[mode].ringColor}`}
-                strokeWidth="12"
-                strokeDasharray={circumference}
-                strokeDashoffset={progressOffset}
-                strokeLinecap="round"
-              />
-            </svg>
-
-            {/* Center Content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={`text-6xl font-bold font-mono tracking-tighter ${modes[mode].color} drop-shadow-sm`}>
-                {formatTime(timeLeft)}
-              </span>
-              <span className="text-sm font-medium text-gray-500 uppercase tracking-widest mt-2 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
-                {modes[mode].label}
-              </span>
+            <div className="text-right">
+              <div className="text-3xl font-mono font-bold text-foreground">
+                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+              <div className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+                {currentTime.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+              </div>
             </div>
           </div>
-
-          {/* Controls */}
-          <div className="flex-1 w-full space-y-6">
-            <div className="grid grid-cols-3 gap-3 bg-gray-50 dark:bg-gray-800 p-2 rounded-xl">
-              <button
-                onClick={() => switchMode("focus")}
-                className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'focus' ? 'bg-white shadow-md text-rose-500' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-              >
-                <Zap className="w-5 h-5 mb-1" />
-                <span className="text-xs font-semibold">Focus</span>
-              </button>
-              <button
-                onClick={() => switchMode("shortBreak")}
-                className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'shortBreak' ? 'bg-white shadow-md text-emerald-500' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-              >
-                <Coffee className="w-5 h-5 mb-1" />
-                <span className="text-xs font-semibold">Short</span>
-              </button>
-              <button
-                onClick={() => switchMode("longBreak")}
-                className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'longBreak' ? 'bg-white shadow-md text-blue-500' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
-              >
-                <Clock className="w-5 h-5 mb-1" />
-                <span className="text-xs font-semibold">Long</span>
-              </button>
+  
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            {/* Circular Timer Display */}
+            <div className="relative w-64 h-64 flex items-center justify-center">
+              {/* Background Ring */}
+              <svg className="w-full h-full transform -rotate-90">
+                <circle
+                  cx="50%" cy="50%" r={radius}
+                  className="stroke-muted fill-none"
+                  strokeWidth="12"
+                />
+                {/* Progress Ring */}
+                <circle
+                  cx="50%" cy="50%" r={radius}
+                  className={`fill-none transition-all duration-1000 ease-linear ${modes[mode].ringColor}`}
+                  strokeWidth="12"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={progressOffset}
+                  strokeLinecap="round"
+                />
+              </svg>
+  
+              {/* Center Content */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={`text-6xl font-bold font-mono tracking-tighter ${modes[mode].color} drop-shadow-sm`}>
+                  {formatTime(timeLeft)}
+                </span>
+                <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest mt-2 bg-muted px-3 py-1 rounded-full">
+                  {modes[mode].label}
+                </span>
+              </div>
             </div>
-
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={toggleTimer}
-                className={`flex-1 h-14 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${isActive
-                  ? 'bg-amber-500 hover:bg-amber-600'
-                  : 'bg-indigo-600 hover:bg-indigo-700'
-                  }`}
-              >
-                {isActive ? (
-                  <> <Pause className="mr-2 h-6 w-6" /> PAUSE </>
-                ) : (
-                  <> <Play className="mr-2 h-6 w-6" /> START </>
-                )}
-              </Button>
-              <Button
-                onClick={resetTimer}
-                variant="outline"
-                className="h-14 w-14 rounded-xl border-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                <RotateCcw className="h-6 w-6 text-gray-500" />
-              </Button>
-            </div>
-
-            <div className="text-center text-sm text-gray-400">
-              Sessions completed today: <span className="text-gray-900 dark:text-gray-100 font-bold ml-1">{sessions}</span>
+  
+            {/* Controls */}
+            <div className="flex-1 w-full space-y-6">
+              <div className="grid grid-cols-3 gap-3 bg-muted p-2 rounded-xl">
+                <button
+                  onClick={() => switchMode("focus")}
+                  className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'focus' ? 'bg-background shadow-md text-rose-500' : 'text-muted-foreground hover:bg-background/50'}`}
+                >
+                  <Zap className="w-5 h-5 mb-1" />
+                  <span className="text-xs font-semibold">Focus</span>
+                </button>
+                <button
+                  onClick={() => switchMode("shortBreak")}
+                  className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'shortBreak' ? 'bg-background shadow-md text-emerald-500' : 'text-muted-foreground hover:bg-background/50'}`}
+                >
+                  <Coffee className="w-5 h-5 mb-1" />
+                  <span className="text-xs font-semibold">Short</span>
+                </button>
+                <button
+                  onClick={() => switchMode("longBreak")}
+                  className={`flex flex-col items-center justify-center py-3 rounded-lg transition-all ${mode === 'longBreak' ? 'bg-background shadow-md text-blue-500' : 'text-muted-foreground hover:bg-background/50'}`}
+                >
+                  <Clock className="w-5 h-5 mb-1" />
+                  <span className="text-xs font-semibold">Long</span>
+                </button>
+              </div>
+  
+              <div className="flex items-center gap-4">
+                <Button
+                  onClick={toggleTimer}
+                  className={`flex-1 h-14 text-lg font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${isActive
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    }`}
+                >
+                  {isActive ? (
+                    <> <Pause className="mr-2 h-6 w-6" /> PAUSE </>
+                  ) : (
+                    <> <Play className="mr-2 h-6 w-6" /> START </>
+                  )}
+                </Button>
+                <Button
+                  onClick={resetTimer}
+                  variant="outline"
+                  className="h-14 w-14 rounded-xl border-2 hover:bg-accent"
+                >
+                  <RotateCcw className="h-6 w-6 text-muted-foreground" />
+                </Button>
+              </div>
+  
+              <div className="text-center text-sm text-muted-foreground">
+                Sessions completed today: <span className="text-foreground font-bold ml-1">{sessions}</span>
+              </div>
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
 };
 
 export default StudyTimer;

@@ -45,15 +45,15 @@ function AchievementsSection({ achievements }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {achievements.map((achievement, index) => (
-                    <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center space-x-4">
-                        <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white">
+                    <div key={index} className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 border border-amber-200 dark:border-amber-900/30 rounded-xl p-4 flex items-center space-x-4">
+                        <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-orange-500/20">
                             {achievementIcons[achievement.achievementType] || <Trophy className="w-6 h-6" />}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-gray-900">{achievement.achievementName}</h3>
-                            <p className="text-sm text-gray-600">{achievement.description}</p>
+                            <h3 className="font-semibold text-foreground">{achievement.achievementName}</h3>
+                            <p className="text-sm text-muted-foreground">{achievement.description}</p>
                             {achievement.points > 0 && (
-                                <span className="inline-flex items-center text-xs font-medium mt-1 text-amber-700">
+                                <span className="inline-flex items-center text-xs font-medium mt-1 text-amber-600 dark:text-amber-400">
                                     <Star className="w-3 h-3 mr-1 fill-current" />
                                     {achievement.points} points
                                 </span>

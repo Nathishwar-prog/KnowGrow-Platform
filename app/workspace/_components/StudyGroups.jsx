@@ -74,122 +74,59 @@ const StudyGroups = () => {
     group.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  return (
-    <div className="mb-10">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Study Groups</h2>
-        <div className="flex space-x-2">
-          <Button 
-            variant={activeTab === "discover" ? "default" : "outline"}
-            onClick={() => setActiveTab("discover")}
-          >
-            Discover
-          </Button>
-          <Button 
-            variant={activeTab === "myGroups" ? "default" : "outline"}
-            onClick={() => setActiveTab("myGroups")}
-          >
-            My Groups
-          </Button>
-          <Button 
-            variant={activeTab === "create" ? "default" : "outline"}
-            onClick={() => setActiveTab("create")}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create
-          </Button>
-        </div>
-      </div>
-
-      {activeTab === "discover" && (
-        <div>
-          <div className="relative mb-6">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search study groups..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredGroups.map((group) => (
-              <Card key={group.id} className="hover:shadow-lg transition-shadow duration-300">
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="flex items-center">
-                        {group.name}
-                        {!group.isPublic && <Lock className="ml-2 h-4 w-4 text-gray-500" />}
-                      </CardTitle>
-                      <p className="text-sm text-gray-500">{group.topic}</p>
-                    </div>
-                    <div className="flex -space-x-2">
-                      {group.memberAvatars.map((avatar, index) => (
-                        <img
-                          key={index}
-                          src={avatar}
-                          alt="Member"
-                          className="w-8 h-8 rounded-full border-2 border-white"
-                        />
-                      ))}
-                      <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
-                        <span className="text-xs text-gray-500">+{group.members - 3}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 mb-4">{group.description}</p>
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Users className="mr-1 h-4 w-4" />
-                      <span>{group.members} members</span>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Calendar className="mr-1 h-4 w-4" />
-                      <span>{group.lastActive}</span>
-                    </div>
-                  </div>
-                  <Button className="w-full mt-4">
-                    <MessageCircle className="mr-2 h-4 w-4" />
-                    Join Group
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+    return (
+      <div className="mb-10">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h2 className="text-2xl font-bold text-foreground">Study Groups</h2>
+          <div className="flex flex-wrap gap-2">
+            <Button 
+              variant={activeTab === "discover" ? "default" : "outline"}
+              onClick={() => setActiveTab("discover")}
+              className="text-xs sm:text-sm"
+            >
+              Discover
+            </Button>
+            <Button 
+              variant={activeTab === "myGroups" ? "default" : "outline"}
+              onClick={() => setActiveTab("myGroups")}
+              className="text-xs sm:text-sm"
+            >
+              My Groups
+            </Button>
+            <Button 
+              variant={activeTab === "create" ? "default" : "outline"}
+              onClick={() => setActiveTab("create")}
+              className="text-xs sm:text-sm"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Create
+            </Button>
           </div>
         </div>
-      )}
-
-      {activeTab === "myGroups" && (
-        <div>
-          {myGroups.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium mb-2">No study groups yet</h3>
-                <p className="text-gray-500 mb-4">
-                  Join or create a study group to connect with other learners
-                </p>
-                <Button onClick={() => setActiveTab("discover")}>
-                  Discover Groups
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {myGroups.map((group) => (
-                <Card key={group.id} className="hover:shadow-lg transition-shadow duration-300">
+  
+        {activeTab === "discover" && (
+          <div>
+            <div className="relative mb-6">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search study groups..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-card border-border/50"
+              />
+            </div>
+  
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredGroups.map((group) => (
+                <Card key={group.id} className="bg-card border-border/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
-                        <CardTitle className="flex items-center">
+                        <CardTitle className="flex items-center text-foreground">
                           {group.name}
-                          {!group.isPublic && <Lock className="ml-2 h-4 w-4 text-gray-500" />}
+                          {!group.isPublic && <Lock className="ml-2 h-4 w-4 text-muted-foreground" />}
                         </CardTitle>
-                        <p className="text-sm text-gray-500">{group.topic}</p>
+                        <p className="text-sm text-muted-foreground">{group.topic}</p>
                       </div>
                       <div className="flex -space-x-2">
                         {group.memberAvatars.map((avatar, index) => (
@@ -197,87 +134,153 @@ const StudyGroups = () => {
                             key={index}
                             src={avatar}
                             alt="Member"
-                            className="w-8 h-8 rounded-full border-2 border-white"
+                            className="w-8 h-8 rounded-full border-2 border-card"
                           />
                         ))}
-                        <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
-                          <span className="text-xs text-gray-500">+{group.members - 3}</span>
+                        <div className="w-8 h-8 rounded-full bg-muted border-2 border-card flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-muted-foreground">+{group.members - 3}</span>
                         </div>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-600 mb-4">{group.description}</p>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Users className="mr-1 h-4 w-4" />
+                    <p className="text-muted-foreground text-sm mb-4 line-clamp-2">{group.description}</p>
+                    <div className="flex justify-between items-center py-3 border-y border-border/50">
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Users className="mr-1 h-3.5 w-3.5" />
                         <span>{group.members} members</span>
                       </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="mr-1 h-4 w-4" />
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Calendar className="mr-1 h-3.5 w-3.5" />
                         <span>{group.lastActive}</span>
                       </div>
                     </div>
-                    <Button className="w-full mt-4">
+                    <Button className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
                       <MessageCircle className="mr-2 h-4 w-4" />
-                      Open Chat
+                      Join Group
                     </Button>
                   </CardContent>
                 </Card>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {activeTab === "create" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Create a New Study Group</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Group Name</label>
-                <Input placeholder="Enter group name" />
+          </div>
+        )}
+  
+        {activeTab === "myGroups" && (
+          <div>
+            {myGroups.length === 0 ? (
+              <Card className="text-center py-12 border-dashed bg-card/50">
+                <CardContent>
+                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium text-foreground mb-2">No study groups yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Join or create a study group to connect with other learners
+                  </p>
+                  <Button onClick={() => setActiveTab("discover")}>
+                    Discover Groups
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {myGroups.map((group) => (
+                  <Card key={group.id} className="bg-card border-border/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="flex items-center text-foreground">
+                            {group.name}
+                            {!group.isPublic && <Lock className="ml-2 h-4 w-4 text-muted-foreground" />}
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground">{group.topic}</p>
+                        </div>
+                        <div className="flex -space-x-2">
+                          {group.memberAvatars.map((avatar, index) => (
+                            <img
+                              key={index}
+                              src={avatar}
+                              alt="Member"
+                              className="w-8 h-8 rounded-full border-2 border-card"
+                            />
+                          ))}
+                          <div className="w-8 h-8 rounded-full bg-muted border-2 border-card flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-muted-foreground">+{group.members - 3}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-muted-foreground text-sm mb-4 line-clamp-2">{group.description}</p>
+                      <div className="flex justify-between items-center py-3 border-y border-border/50">
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Users className="mr-1 h-3.5 w-3.5" />
+                          <span>{group.members} members</span>
+                        </div>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Calendar className="mr-1 h-3.5 w-3.5" />
+                          <span>{group.lastActive}</span>
+                        </div>
+                      </div>
+                      <Button className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm">
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Open Chat
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Topic</label>
-                <Input placeholder="Enter topic or subject" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
-                <Input placeholder="Describe your study group" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Privacy</label>
-                <div className="flex space-x-4 mt-2">
-                  <div className="flex items-center">
-                    <input type="radio" id="public" name="privacy" className="mr-2" defaultChecked />
-                    <label htmlFor="public" className="flex items-center">
-                      <Globe className="mr-1 h-4 w-4" />
-                      Public
-                    </label>
-                  </div>
-                  <div className="flex items-center">
-                    <input type="radio" id="private" name="privacy" className="mr-2" />
-                    <label htmlFor="private" className="flex items-center">
-                      <Lock className="mr-1 h-4 w-4" />
-                      Private
-                    </label>
+            )}
+          </div>
+        )}
+  
+        {activeTab === "create" && (
+          <Card className="bg-card border-border/50 max-w-2xl mx-auto">
+            <CardHeader>
+              <CardTitle className="text-foreground">Create a New Study Group</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Group Name</label>
+                  <Input placeholder="Enter group name" className="bg-background border-border/50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Topic</label>
+                  <Input placeholder="Enter topic or subject" className="bg-background border-border/50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Description</label>
+                  <Input placeholder="Describe your study group" className="bg-background border-border/50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Privacy</label>
+                  <div className="flex space-x-4 mt-2">
+                    <div className="flex items-center">
+                      <input type="radio" id="public" name="privacy" className="mr-2 accent-primary" defaultChecked />
+                      <label htmlFor="public" className="flex items-center text-sm text-foreground">
+                        <Globe className="mr-1 h-4 w-4 text-muted-foreground" />
+                        Public
+                      </label>
+                    </div>
+                    <div className="flex items-center">
+                      <input type="radio" id="private" name="privacy" className="mr-2 accent-primary" />
+                      <label htmlFor="private" className="flex items-center text-sm text-foreground">
+                        <Lock className="mr-1 h-4 w-4 text-muted-foreground" />
+                        Private
+                      </label>
+                    </div>
                   </div>
                 </div>
+                <Button className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Group
+                </Button>
               </div>
-              <Button className="w-full mt-4">
-                <Plus className="mr-2 h-4 w-4" />
-                Create Group
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
 };
 
 export default StudyGroups;

@@ -105,7 +105,7 @@ const LearningStreak = () => {
     };
 
     return (
-        <Card className="mb-8 border-none shadow-lg bg-gradient-to-br from-indigo-600 to-violet-700 text-white overflow-hidden relative">
+        <Card className="mb-8 border border-white/10 shadow-lg bg-gradient-to-br from-indigo-600 to-violet-700 dark:from-indigo-950 dark:to-violet-950 text-white overflow-hidden relative">
             {/* Background decoration */}
             <div className="absolute top-0 right-0 -mt-10 -mr-10 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
             <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-32 w-32 rounded-full bg-indigo-400/20 blur-2xl"></div>
@@ -118,7 +118,7 @@ const LearningStreak = () => {
                         </div>
                         <div>
                             <h2 className="text-xl font-bold">Learning Streak</h2>
-                            <p className="text-indigo-100 text-sm">Keep the momentum going!</p>
+                            <p className="text-indigo-100 dark:text-indigo-200 text-sm">Keep the momentum going!</p>
                         </div>
                     </div>
 
@@ -142,7 +142,7 @@ const LearningStreak = () => {
                     </div>
                     <div className="h-3 w-full bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
                         <div
-                            className="h-full bg-gradient-to-r from-yellow-300 to-amber-500 shadow-[0_0_10px_rgba(251,191,36,0.5)] transition-all duration-1000 ease-out"
+                            className="h-full bg-gradient-to-r from-yellow-300 to-amber-500 shadow-[0_0_15px_rgba(251,191,36,0.6)] transition-all duration-1000 ease-out"
                             style={{ width: `${Math.min(100, (streak / 30) * 100)}%` }}
                         ></div>
                     </div>
@@ -167,9 +167,9 @@ const LearningStreak = () => {
                                 <div className={`
                             w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500
                             ${isActive
-                                        ? 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-900 shadow-lg scale-110'
-                                        : 'bg-white/10 text-indigo-300 border border-white/10'}
-                            ${offset === 0 ? 'ring-2 ring-white/50 ring-offset-2 ring-offset-indigo-600' : ''}
+                                        ? 'bg-gradient-to-br from-yellow-300 to-amber-500 text-amber-900 shadow-lg scale-110 ring-2 ring-yellow-200/50'
+                                        : 'bg-white/10 text-indigo-300 border border-white/10 hover:bg-white/20'}
+                            ${offset === 0 ? 'ring-2 ring-white ring-offset-2 ring-offset-indigo-600' : ''}
                         `}>
                                     {isActive ? <Zap className="h-3 w-3 fill-current" /> : dayName}
                                 </div>
