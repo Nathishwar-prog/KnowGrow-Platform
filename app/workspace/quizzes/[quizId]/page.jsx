@@ -135,7 +135,8 @@ function QuizViewPage() {
             hint: q.hint,
             type: q.type,
             difficulty: q.difficulty,
-            codeExample: q.codeExample
+            code: q.code || q.codeExample,
+            codeExample: q.code || q.codeExample
         }));
     };
 

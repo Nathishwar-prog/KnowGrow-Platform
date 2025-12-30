@@ -108,12 +108,15 @@ const QuizGenerateAI = ({ isOpen, onClose }) => {
     setIsTyping(false);
   };
 
-  const copyQuizToClipboard = async () => {
-    if (!quizData) return;
-    const quizText = `Quiz: ${quizData.title}\n\n${quizData.description}\n\n` +
-      quizData.questions.map((q, i) => 
-        `${i + 1}. ${q.question}\n${q.options ? (Array.isArray(q.options) ? q.options.map((opt, j) => `   ${String.fromCharCode(65 + j)}. ${opt}`).join('\n') : Object.entries(q.options).map(([k, v]) => `   ${k}. ${v}`).join('\n')) : ''}\n`
-      ).join('\n');
+    const copyQuizToClipboard = async () => {
+      if (!quizData) return;
+      const quizText = `Quiz: ${quizData.title}\n\n${quizData.description}\n\n` +
+        quizData.questions.map((q, i) => 
+          `${i + 1}. ${q.question}\n` +
+          (q.code || q.codeExample ? `\nCode Context:\n${q.code || q.codeExample}\n` : '') +
+          (q.options ? (Array.isArray(q.options) ? q.options.map((opt, j) => `   ${String.fromCharCode(65 + j)}. ${opt}`).join('\n') : Object.entries(q.options).map(([k, v]) => `   ${k}. ${v}`).join('\n')) : '') + 
+          `\nCorrect Answer: ${q.correctAnswer}\nExplanation: ${q.explanation}\n`
+        ).join('\n---\n\n');
     
     try {
       await navigator.clipboard.writeText(quizText);

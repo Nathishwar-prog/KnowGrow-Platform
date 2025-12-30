@@ -240,6 +240,15 @@ export function QuizRenderer({
                                                 <div className="text-2xl font-black text-foreground tracking-tight leading-tight">
                                                     <MarkdownRenderer content={question.question} />
                                                 </div>
+                                                
+                                                {(question.code || question.codeExample) && (
+                                                    <div className="mt-6 relative group/code">
+                                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-primary/5 rounded-2xl blur opacity-50 group-hover/code:opacity-100 transition duration-500" />
+                                                        <pre className="relative bg-slate-900 text-slate-100 rounded-xl p-6 overflow-x-auto text-sm font-mono border border-white/10 shadow-2xl scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                                                            <code>{question.code || question.codeExample}</code>
+                                                        </pre>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                         {question.difficulty && (
@@ -388,7 +397,9 @@ export function QuizRenderer({
                                                     </div>
                                                     <div className="bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/20">
                                                         <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest block mb-2">Expected Logic</span>
-                                                        <p className="font-black text-lg text-emerald-700 dark:text-emerald-400">{question.correctAnswer}</p>
+                                                        <div className="font-black text-lg text-emerald-700 dark:text-emerald-400">
+                                                            <MarkdownRenderer content={question.correctAnswer} />
+                                                        </div>
                                                     </div>
                                                 </div>
 
