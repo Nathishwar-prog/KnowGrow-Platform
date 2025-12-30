@@ -2,24 +2,17 @@ import { Sidebar } from "lucide-react";
 import React from "react";
 import { SidebarProvider, SidebarTrigger } from "../../@/components/ui/sidebar";
 import AppSidebar from "./_components/AppSidebar";
-import AppHeader from "./_components/AppHeader";
-import WelcomeBanner from "./_components/WelcomeBanner";
-
+import WorkspaceNavbar from "./_components/WorkspaceNavbar";
 
 function WorkspaceProvider({ children }) {
   return (
-    <SidebarProvider>
-        <AppSidebar />
-       
-        <div className='w-full'>
-          <AppHeader />
-           
-          <div className='p-10'>
-              {children}
-          </div>
-        </div>
-    </SidebarProvider>
-    )
+    <div className='w-full min-h-screen flex flex-col'>
+      <WorkspaceNavbar />
+      <div className='flex-1 p-6 md:p-10'>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export default WorkspaceProvider;
