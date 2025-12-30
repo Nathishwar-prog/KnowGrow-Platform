@@ -1,5 +1,5 @@
-import { generateContent, parseJsonResponse } from "../../../@/lib/generateContent";
-import { sanitizeChapterTitle, sanitizeSubTopic } from "../../../@/lib/titleSanitizer";
+import { generateContent, parseJsonResponse } from "@/lib/generateContent";
+import { sanitizeChapterTitle, sanitizeSubTopic } from "@/lib/titleSanitizer";
 import axios from "axios";
 import { db } from "../../../config/db";
 import { coursesTable } from "../../../config/schema";
