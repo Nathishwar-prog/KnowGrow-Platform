@@ -8,6 +8,9 @@ const DashboardContext = createContext(null);
 
 const CACHE_DURATION_MS = 30000;
 
+let globalFetchPromise = null;
+let globalFetchTimestamp = 0;
+
 export function DashboardProvider({ children }) {
   const { user, isLoaded: isUserLoaded } = useUser();
   const [data, setData] = useState(null);
@@ -15,9 +18,7 @@ export function DashboardProvider({ children }) {
   const [error, setError] = useState(null);
   const [lastFetch, setLastFetch] = useState(0);
   
-  const abortControllerRef = useRef(null);
-  const fetchInProgressRef = useRef(false);
-  const mountedRef = useRef(true);
+  const hasFetchedRef = useRef(false);
 
   const fetchDashboard = useCallback(async (forceRefresh = false) => {
     if (!user) {
@@ -26,42 +27,46 @@ export function DashboardProvider({ children }) {
     }
 
     const now = Date.now();
+    
     if (!forceRefresh && data && (now - lastFetch) < CACHE_DURATION_MS) {
       return;
     }
 
-    if (fetchInProgressRef.current) {
-      return;
+    if (globalFetchPromise && (now - globalFetchTimestamp) < 5000) {
+      try {
+        const result = await globalFetchPromise;
+        if (result.success && result.data) {
+          setData(result.data);
+          setLastFetch(Date.now());
+          setError(null);
+        }
+        setLoading(false);
+        return;
+      } catch {
+      }
     }
-
-    fetchInProgressRef.current = true;
-
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
 
     setLoading(true);
     setError(null);
 
-    try {
+    globalFetchTimestamp = now;
+    globalFetchPromise = (async () => {
       const response = await fetch("/api/dashboard", {
         method: "GET",
         headers: { "Content-Type": "application/json" },
-        signal: abortControllerRef.current.signal,
         cache: "no-store"
       });
-
-      if (!mountedRef.current) return;
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      const result = await response.json();
+      return await response.json();
+    })();
 
-      if (!mountedRef.current) return;
+    try {
+      const result = await globalFetchPromise;
 
       if (result.success && result.data) {
         setData(result.data);
@@ -71,18 +76,11 @@ export function DashboardProvider({ children }) {
         throw new Error(result.error || "Invalid response");
       }
     } catch (err) {
-      if (err.name === "AbortError") {
-        return;
-      }
-      if (mountedRef.current) {
-        setError(err.message || "Failed to load dashboard");
-        console.error("[Dashboard] Fetch error:", err);
-      }
+      setError(err.message || "Failed to load dashboard");
+      console.error("[Dashboard] Fetch error:", err);
     } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-      }
-      fetchInProgressRef.current = false;
+      setLoading(false);
+      globalFetchPromise = null;
     }
   }, [user, data, lastFetch]);
 
@@ -96,21 +94,13 @@ export function DashboardProvider({ children }) {
   }, [fetchDashboard]);
 
   useEffect(() => {
-    mountedRef.current = true;
-
-    if (isUserLoaded && user) {
+    if (isUserLoaded && user && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
       fetchDashboard();
     } else if (isUserLoaded && !user) {
       setLoading(false);
       setData(null);
     }
-
-    return () => {
-      mountedRef.current = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
   }, [isUserLoaded, user, fetchDashboard]);
 
   useEffect(() => {

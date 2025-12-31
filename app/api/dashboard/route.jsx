@@ -4,17 +4,6 @@ import { currentUser } from "@clerk/nextjs/server";
 import { desc, eq, sql, getTableColumns } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-const API_TIMEOUT_MS = 10000;
-
-function withTimeout(promise, ms = API_TIMEOUT_MS) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("TIMEOUT")), ms)
-    ),
-  ]);
-}
-
 const serialize = (obj) => {
   return JSON.parse(JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? Number(v) : v)));
 };
@@ -51,51 +40,49 @@ export async function GET(req) {
 
     const { courseContent, ...courseColumns } = getTableColumns(coursesTable);
 
-    const [enrolledCoursesResult, userCoursesResult, quizzesResult, userDbResult] = await withTimeout(
-      Promise.all([
-        db
-          .select({
-            courses: courseColumns,
-            enrollCourse: enrollCourseTable,
-          })
-          .from(coursesTable)
-          .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
-          .where(eq(enrollCourseTable.userEmail, userEmail))
-          .orderBy(desc(enrollCourseTable.id))
-          .limit(50),
+    const [enrolledCoursesResult, userCoursesResult, quizzesResult, userDbResult] = await Promise.all([
+      db
+        .select({
+          courses: courseColumns,
+          enrollCourse: enrollCourseTable,
+        })
+        .from(coursesTable)
+        .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
+        .where(eq(enrollCourseTable.userEmail, userEmail))
+        .orderBy(desc(enrollCourseTable.id))
+        .limit(50),
 
-        db
-          .select({
-            ...courseColumns,
-            hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
-          })
-          .from(coursesTable)
-          .where(eq(coursesTable.userEmail, userEmail))
-          .orderBy(desc(coursesTable.id))
-          .limit(100),
+      db
+        .select({
+          ...courseColumns,
+          hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
+        })
+        .from(coursesTable)
+        .where(eq(coursesTable.userEmail, userEmail))
+        .orderBy(desc(coursesTable.id))
+        .limit(100),
 
-        db
-          .select({
-            id: quizzesTable.id,
-            quizId: quizzesTable.quizId,
-            title: quizzesTable.title,
-            topic: quizzesTable.topic,
-            difficulty: quizzesTable.difficulty,
-            questionCount: quizzesTable.questionCount,
-            createdAt: quizzesTable.createdAt
-          })
-          .from(quizzesTable)
-          .where(eq(quizzesTable.userEmail, userEmail))
-          .orderBy(desc(quizzesTable.createdAt))
-          .limit(20),
+      db
+        .select({
+          id: quizzesTable.id,
+          quizId: quizzesTable.quizId,
+          title: quizzesTable.title,
+          topic: quizzesTable.topic,
+          difficulty: quizzesTable.difficulty,
+          questionCount: quizzesTable.questionCount,
+          createdAt: quizzesTable.createdAt
+        })
+        .from(quizzesTable)
+        .where(eq(quizzesTable.userEmail, userEmail))
+        .orderBy(desc(quizzesTable.createdAt))
+        .limit(20),
 
-        db
-          .select({ id: usersTable.id, isOnboarded: usersTable.isOnboarded })
-          .from(usersTable)
-          .where(eq(usersTable.email, userEmail))
-          .limit(1)
-      ])
-    );
+      db
+        .select({ id: usersTable.id, isOnboarded: usersTable.isOnboarded })
+        .from(usersTable)
+        .where(eq(usersTable.email, userEmail))
+        .limit(1)
+    ]);
 
     let achievements = [];
     if (userDbResult.length > 0) {
@@ -226,12 +213,6 @@ export async function GET(req) {
       timestamp: Date.now()
     });
   } catch (error) {
-    if (error.message === "TIMEOUT") {
-      return NextResponse.json(
-        { success: false, error: "Request took too long. Please retry.", data: null },
-        { status: 504 }
-      );
-    }
     console.error("[API /dashboard] Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch dashboard data.", data: null },

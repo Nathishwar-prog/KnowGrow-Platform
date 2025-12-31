@@ -4,20 +4,9 @@ import { NextResponse } from "next/server";
 import { desc, eq, sql, and, getTableColumns } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
 
-const API_TIMEOUT_MS = 8000;
-
 const serialize = (obj) => {
   return JSON.parse(JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? Number(v) : v)));
 };
-
-function withTimeout(promise, ms = API_TIMEOUT_MS) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("TIMEOUT")), ms)
-    ),
-  ]);
-}
 
 export async function GET(req) {
   try {
@@ -53,45 +42,35 @@ export async function GET(req) {
         }
       }
 
-      const result = await withTimeout(query);
+      const result = await query;
       return NextResponse.json(serialize(result));
     }
 
     if (courseId) {
-      const result = await withTimeout(
-        db
-          .select({
-            ...getTableColumns(coursesTable),
-            hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
-          })
-          .from(coursesTable)
-          .where(eq(coursesTable.cid, courseId))
-          .limit(1)
-      );
+      const result = await db
+        .select({
+          ...getTableColumns(coursesTable),
+          hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
+        })
+        .from(coursesTable)
+        .where(eq(coursesTable.cid, courseId))
+        .limit(1);
 
       return NextResponse.json(serialize(result[0] ?? null));
     }
 
-    const result = await withTimeout(
-      db
-        .select({
-          ...courseColumns,
-          hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
-        })
-        .from(coursesTable)
-        .where(eq(coursesTable.userEmail, user.primaryEmailAddress?.emailAddress))
-        .orderBy(desc(coursesTable.id))
-        .limit(100)
-    );
+    const result = await db
+      .select({
+        ...courseColumns,
+        hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
+      })
+      .from(coursesTable)
+      .where(eq(coursesTable.userEmail, user.primaryEmailAddress?.emailAddress))
+      .orderBy(desc(coursesTable.id))
+      .limit(100);
 
     return NextResponse.json(serialize(result));
   } catch (error) {
-    if (error.message === "TIMEOUT") {
-      return NextResponse.json(
-        { success: false, error: "Request took too long. Please retry." },
-        { status: 504 }
-      );
-    }
     console.error("[API /courses] Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch courses." },

@@ -1,35 +1,13 @@
 import axios from "axios";
 
 const DEFAULT_TIMEOUTS = {
-  dashboard: 25000,
-  courseList: 25000,
-  courseDetail: 25000,
+  dashboard: 60000,
+  courseList: 30000,
+  courseDetail: 30000,
   enroll: 15000,
-  enrollList: 25000,
+  enrollList: 30000,
   default: 15000,
 };
-
-const activeRequests = new Map();
-
-function createAbortKey(url, method = "GET") {
-  return `${method}:${url}`;
-}
-
-export function cancelRequest(url, method = "GET") {
-  const key = createAbortKey(url, method);
-  const controller = activeRequests.get(key);
-  if (controller) {
-    controller.abort();
-    activeRequests.delete(key);
-  }
-}
-
-export function cancelAllRequests() {
-  activeRequests.forEach((controller) => {
-    controller.abort();
-  });
-  activeRequests.clear();
-}
 
 function getTimeout(type) {
   return DEFAULT_TIMEOUTS[type] || DEFAULT_TIMEOUTS.default;
@@ -42,48 +20,27 @@ async function request(config) {
     data,
     timeoutType = "default",
     timeout: customTimeout,
-    cancelPrevious = true,
     ...rest
   } = config;
 
-  const key = createAbortKey(url, method);
-
-  if (cancelPrevious && activeRequests.has(key)) {
-    activeRequests.get(key).abort();
-    activeRequests.delete(key);
-  }
-
-  const controller = new AbortController();
-  activeRequests.set(key, controller);
-
   const timeout = customTimeout || getTimeout(timeoutType);
-  const timeoutId = setTimeout(() => {
-    controller.abort();
-  }, timeout);
 
   try {
     const response = await axios({
       url,
       method,
       data,
-      signal: controller.signal,
       timeout,
       ...rest,
     });
 
-    clearTimeout(timeoutId);
-    activeRequests.delete(key);
     return { success: true, data: response.data, status: response.status };
   } catch (error) {
-    clearTimeout(timeoutId);
-    activeRequests.delete(key);
-
-    if (error.name === "AbortError" || error.code === "ECONNABORTED" || error.code === "ERR_CANCELED") {
+    if (error.code === "ECONNABORTED") {
       return {
         success: false,
         error: "Request took too long. Please try again.",
         isTimeout: true,
-        isCanceled: error.code === "ERR_CANCELED",
       };
     }
 
@@ -124,7 +81,6 @@ export const api = {
       method: "POST",
       data: { courseId },
       timeoutType: "enroll",
-      cancelPrevious: false,
     }),
     update: (courseId, completedChapter) => request({
       url: "/api/enroll-course",
@@ -135,10 +91,7 @@ export const api = {
   },
 };
 
-export function useCleanupOnUnmount(cleanup) {
-  if (typeof window !== "undefined") {
-    return cleanup;
-  }
-}
+export function cancelRequest() {}
+export function cancelAllRequests() {}
 
 export default api;

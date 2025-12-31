@@ -5,17 +5,6 @@ import { and, desc, eq, getTableColumns } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-const API_TIMEOUT_MS = 6000;
-
-function withTimeout(promise, ms = API_TIMEOUT_MS) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("TIMEOUT")), ms)
-    ),
-  ]);
-}
-
 const serialize = (obj) => {
   return JSON.parse(JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? Number(v) : v)));
 };
@@ -40,37 +29,27 @@ export async function POST(req) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
-    const enrollCourses = await withTimeout(
-      db.select({ id: enrollCourseTable.id })
-        .from(enrollCourseTable)
-        .where(and(
-          eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress),
-          eq(enrollCourseTable.cid, courseId)
-        ))
-        .limit(1)
-    );
+    const enrollCourses = await db.select({ id: enrollCourseTable.id })
+      .from(enrollCourseTable)
+      .where(and(
+        eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress),
+        eq(enrollCourseTable.cid, courseId)
+      ))
+      .limit(1);
 
     if (enrollCourses?.length > 0) {
       return NextResponse.json({ resp: "Already Enrolled" });
     }
 
-    const result = await withTimeout(
-      db.insert(enrollCourseTable)
-        .values({
-          cid: courseId,
-          userEmail: user.primaryEmailAddress.emailAddress
-        })
-        .returning({ id: enrollCourseTable.id, cid: enrollCourseTable.cid })
-    );
+    const result = await db.insert(enrollCourseTable)
+      .values({
+        cid: courseId,
+        userEmail: user.primaryEmailAddress.emailAddress
+      })
+      .returning({ id: enrollCourseTable.id, cid: enrollCourseTable.cid });
 
     return NextResponse.json(result);
   } catch (error) {
-    if (error.message === "TIMEOUT") {
-      return NextResponse.json(
-        { success: false, error: "Request took too long. Please retry." },
-        { status: 504 }
-      );
-    }
     console.error("[API /enroll-course POST] Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to enroll in course." },
@@ -92,28 +71,24 @@ export async function GET(req) {
     const { courseContent, ...courseColumns } = getTableColumns(coursesTable);
 
     if (courseId) {
-      const result = await withTimeout(
-        db
-          .select({
-            courses: courseColumns,
-            enrollCourse: enrollCourseTable,
-          })
-          .from(coursesTable)
-          .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
-          .where(and(
-            eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress),
-            eq(enrollCourseTable.cid, courseId)
-          ))
-          .limit(1)
-      );
+      const result = await db
+        .select({
+          courses: courseColumns,
+          enrollCourse: enrollCourseTable,
+        })
+        .from(coursesTable)
+        .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
+        .where(and(
+          eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress),
+          eq(enrollCourseTable.cid, courseId)
+        ))
+        .limit(1);
 
       if (result.length === 0) {
         return NextResponse.json(null);
       }
 
-      const fullCourse = await withTimeout(
-        db.select().from(coursesTable).where(eq(coursesTable.cid, courseId)).limit(1)
-      );
+      const fullCourse = await db.select().from(coursesTable).where(eq(coursesTable.cid, courseId)).limit(1);
 
       return NextResponse.json(serialize({
         courses: fullCourse[0] || result[0].courses,
@@ -121,27 +96,19 @@ export async function GET(req) {
       }));
     }
 
-    const result = await withTimeout(
-      db
-        .select({
-          courses: courseColumns,
-          enrollCourse: enrollCourseTable,
-        })
-        .from(coursesTable)
-        .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
-        .where(eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress))
-        .orderBy(desc(enrollCourseTable.id))
-        .limit(50)
-    );
+    const result = await db
+      .select({
+        courses: courseColumns,
+        enrollCourse: enrollCourseTable,
+      })
+      .from(coursesTable)
+      .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
+      .where(eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress))
+      .orderBy(desc(enrollCourseTable.id))
+      .limit(50);
 
     return NextResponse.json(serialize(result));
   } catch (error) {
-    if (error.message === "TIMEOUT") {
-      return NextResponse.json(
-        { success: false, error: "Request took too long. Please retry." },
-        { status: 504 }
-      );
-    }
     console.error("[API /enroll-course GET] Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch enrolled courses." },
@@ -159,24 +126,16 @@ export async function PUT(req) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
-    const result = await withTimeout(
-      db.update(enrollCourseTable)
-        .set({ completedChapters: completedChapter })
-        .where(and(
-          eq(enrollCourseTable.cid, courseId),
-          eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress)
-        ))
-        .returning({ id: enrollCourseTable.id, completedChapters: enrollCourseTable.completedChapters })
-    );
+    const result = await db.update(enrollCourseTable)
+      .set({ completedChapters: completedChapter })
+      .where(and(
+        eq(enrollCourseTable.cid, courseId),
+        eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress)
+      ))
+      .returning({ id: enrollCourseTable.id, completedChapters: enrollCourseTable.completedChapters });
 
     return NextResponse.json(serialize(result));
   } catch (error) {
-    if (error.message === "TIMEOUT") {
-      return NextResponse.json(
-        { success: false, error: "Request took too long. Please retry." },
-        { status: 504 }
-      );
-    }
     console.error("[API /enroll-course PUT] Error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update progress." },
