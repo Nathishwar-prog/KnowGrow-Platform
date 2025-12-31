@@ -1,11 +1,26 @@
-import { quizzesTable } from "../../../config/schema";
+import { quizzesTable, userActivityTable } from "../../../config/schema";
 import { db } from "../../../config/db";
 import { NextResponse } from "next/server";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
 
 const serialize = (obj) =>
   JSON.parse(JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? Number(v) : v)));
+
+async function logActivity(userEmail, actionType, title, entityId, entityType, metadata = null) {
+  try {
+    await db.insert(userActivityTable).values({
+      userEmail,
+      actionType,
+      title,
+      entityId,
+      entityType,
+      metadata
+    });
+  } catch (err) {
+    console.error("[Activity Log] Failed:", err.message);
+  }
+}
 
 export async function POST(req) {
   try {
@@ -20,7 +35,6 @@ export async function POST(req) {
     const body = await req.json();
     const { quizId, title, description, topic, difficulty, questionCount, quizData } = body;
 
-    // Validate required fields
     if (!quizId || !title || !topic || !difficulty || !questionCount || !quizData) {
       return NextResponse.json(
         { success: false, error: "Missing required fields: quizId, title, topic, difficulty, questionCount, and quizData are mandatory" },
@@ -28,7 +42,8 @@ export async function POST(req) {
       );
     }
 
-    // Save quiz to database
+    const userEmail = user.primaryEmailAddress?.emailAddress;
+
     await db.insert(quizzesTable).values({
       quizId,
       title,
@@ -37,9 +52,18 @@ export async function POST(req) {
       difficulty,
       questionCount,
       quizData,
-      userEmail: user.primaryEmailAddress?.emailAddress,
+      userEmail,
       createdBy: user.id
     });
+
+    await logActivity(
+      userEmail,
+      'quiz_create',
+      `Created quiz: ${title}`,
+      quizId,
+      'quiz',
+      { topic, difficulty, questionCount }
+    );
 
     return NextResponse.json({
       success: true
@@ -67,13 +91,12 @@ export async function GET(req) {
       );
     }
 
-    const { searchParams } = new URL(req.url);
-    const quizId = searchParams?.get("quizId");
+    const userEmail = user.primaryEmailAddress?.emailAddress;
 
-    // Fetch all quizzes
     const result = await db
       .select()
       .from(quizzesTable)
+      .where(eq(quizzesTable.userEmail, userEmail))
       .orderBy(desc(quizzesTable.createdAt));
 
     return NextResponse.json({

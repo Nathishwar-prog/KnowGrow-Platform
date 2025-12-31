@@ -1,4 +1,4 @@
-import { boolean, integer, json, pgTable, varchar, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, json, pgTable, varchar, timestamp, uuid, serial } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -29,7 +29,20 @@ export const enrollCourseTable = pgTable('enrollCourse',{
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   cid: varchar({ length: 255 }).references(() => coursesTable.cid),
   userEmail: varchar({ length: 255 }).references(() => usersTable.email).notNull(),
-  completedChapters: json()
+  completedChapters: json(),
+  enrolledAt: timestamp().defaultNow(),
+  lastActivityAt: timestamp().defaultNow()
+})
+
+export const userActivityTable = pgTable('user_activity', {
+  id: serial().primaryKey(),
+  userEmail: varchar({ length: 255 }).notNull(),
+  actionType: varchar({ length: 100 }).notNull(),
+  title: varchar({ length: 500 }).notNull(),
+  entityId: varchar({ length: 255 }),
+  entityType: varchar({ length: 50 }),
+  metadata: json(),
+  createdAt: timestamp().notNull().defaultNow()
 })
 
 export const quizzesTable = pgTable('quizzes', {

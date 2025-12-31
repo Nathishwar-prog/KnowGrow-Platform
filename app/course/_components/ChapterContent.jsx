@@ -7,7 +7,6 @@ import axios from "axios";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import CodeEnhancer from "./CodeEnhancer";
-import { logActivity } from "../../workspace/_components/ActivityLogger";
 import { onChapterComplete } from "../../../@/lib/dashboardEvents";
 
 function normalizeChapterTitle(chapter, fallbackIndex) {
@@ -60,13 +59,13 @@ function ChapterContent({ courseInfo, refreshData }) {
         completedChapter.push(selectedChapterIndex);
         const result = await axios.put('/api/enroll-course', {
             courseId: courseId,
-            completedChapter: completedChapter
+            completedChapter: completedChapter,
+            chapterName: chapterName
         });
 
         console.log(result);
         refreshData();
 
-        logActivity(`Completed: ${chapterName}`, 'success');
         onChapterComplete();
         toast.success('Chapter Marked Completed!');
         setLoading(false);

@@ -1,4 +1,4 @@
-import { coursesTable, enrollCourseTable } from "../../../config/schema";
+import { coursesTable, enrollCourseTable, userActivityTable } from "../../../config/schema";
 import { db } from "../../../config/db";
 import { currentUser } from "@clerk/nextjs/server";
 import { and, desc, eq, getTableColumns } from "drizzle-orm";
@@ -12,6 +12,21 @@ const serialize = (obj) => {
 const EnrollSchema = z.object({
   courseId: z.string().min(1),
 });
+
+async function logActivity(userEmail, actionType, title, entityId, entityType, metadata = null) {
+  try {
+    await db.insert(userActivityTable).values({
+      userEmail,
+      actionType,
+      title,
+      entityId,
+      entityType,
+      metadata
+    });
+  } catch (err) {
+    console.error("[Activity Log] Failed:", err.message);
+  }
+}
 
 export async function POST(req) {
   try {
@@ -29,10 +44,12 @@ export async function POST(req) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
+    const userEmail = user.primaryEmailAddress.emailAddress;
+
     const enrollCourses = await db.select({ id: enrollCourseTable.id })
       .from(enrollCourseTable)
       .where(and(
-        eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress),
+        eq(enrollCourseTable.userEmail, userEmail),
         eq(enrollCourseTable.cid, courseId)
       ))
       .limit(1);
@@ -41,12 +58,29 @@ export async function POST(req) {
       return NextResponse.json({ resp: "Already Enrolled" });
     }
 
+    const courseInfo = await db.select({ name: coursesTable.name })
+      .from(coursesTable)
+      .where(eq(coursesTable.cid, courseId))
+      .limit(1);
+
+    const courseName = courseInfo[0]?.name || 'a course';
+
     const result = await db.insert(enrollCourseTable)
       .values({
         cid: courseId,
-        userEmail: user.primaryEmailAddress.emailAddress
+        userEmail: userEmail,
+        enrolledAt: new Date(),
+        lastActivityAt: new Date()
       })
       .returning({ id: enrollCourseTable.id, cid: enrollCourseTable.cid });
+
+    await logActivity(
+      userEmail,
+      'enroll',
+      `Enrolled in ${courseName}`,
+      courseId,
+      'course'
+    );
 
     return NextResponse.json(result);
   } catch (error) {
@@ -119,20 +153,70 @@ export async function GET(req) {
 
 export async function PUT(req) {
   try {
-    const { completedChapter, courseId } = await req.json();
+    const { completedChapter, courseId, chapterName } = await req.json();
     const user = await currentUser();
 
     if (!user?.primaryEmailAddress?.emailAddress) {
       return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
     }
 
-    const result = await db.update(enrollCourseTable)
-      .set({ completedChapters: completedChapter })
+    const userEmail = user.primaryEmailAddress.emailAddress;
+
+    const existingEnroll = await db.select({ 
+      completedChapters: enrollCourseTable.completedChapters 
+    })
+      .from(enrollCourseTable)
       .where(and(
         eq(enrollCourseTable.cid, courseId),
-        eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress)
+        eq(enrollCourseTable.userEmail, userEmail)
+      ))
+      .limit(1);
+
+    const previousCount = Array.isArray(existingEnroll[0]?.completedChapters) 
+      ? existingEnroll[0].completedChapters.length 
+      : 0;
+    const newCount = Array.isArray(completedChapter) ? completedChapter.length : 0;
+    const isNewCompletion = newCount > previousCount;
+
+    const result = await db.update(enrollCourseTable)
+      .set({ 
+        completedChapters: completedChapter,
+        lastActivityAt: new Date()
+      })
+      .where(and(
+        eq(enrollCourseTable.cid, courseId),
+        eq(enrollCourseTable.userEmail, userEmail)
       ))
       .returning({ id: enrollCourseTable.id, completedChapters: enrollCourseTable.completedChapters });
+
+    if (isNewCompletion && chapterName) {
+      await logActivity(
+        userEmail,
+        'chapter_complete',
+        `Completed: ${chapterName}`,
+        courseId,
+        'chapter',
+        { chapterIndex: newCount - 1 }
+      );
+
+      const courseInfo = await db.select({ 
+        noOfChapters: coursesTable.noOfChapters,
+        name: coursesTable.name 
+      })
+        .from(coursesTable)
+        .where(eq(coursesTable.cid, courseId))
+        .limit(1);
+
+      if (courseInfo[0] && newCount >= courseInfo[0].noOfChapters) {
+        await logActivity(
+          userEmail,
+          'course_complete',
+          `Completed course: ${courseInfo[0].name}`,
+          courseId,
+          'course'
+        );
+      }
+    }
 
     return NextResponse.json(serialize(result));
   } catch (error) {

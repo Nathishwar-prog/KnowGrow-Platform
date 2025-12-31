@@ -1,4 +1,4 @@
-import { coursesTable, enrollCourseTable, quizzesTable, achievementsTable, usersTable } from "../../../config/schema";
+import { coursesTable, enrollCourseTable, quizzesTable, achievementsTable, usersTable, userActivityTable } from "../../../config/schema";
 import { db } from "../../../config/db";
 import { currentUser } from "@clerk/nextjs/server";
 import { desc, eq, sql, getTableColumns } from "drizzle-orm";
@@ -13,7 +13,8 @@ function calculateCourseProgress(course, enrollData) {
     return { progress: 0, completedChapters: 0, totalChapters: 0 };
   }
 
-  const totalChapters = course.noOfChapters || 0;
+  const courseContent = course.courseContent;
+  const totalChapters = Array.isArray(courseContent) ? courseContent.length : (course.noOfChapters || 0);
   const completedChapters = Array.isArray(enrollData.completedChapters) 
     ? enrollData.completedChapters.length 
     : 0;
@@ -56,6 +57,21 @@ function createEmptyDashboard(userEmail) {
   };
 }
 
+function getActivityDisplayType(actionType) {
+  switch (actionType) {
+    case 'chapter_complete':
+    case 'course_complete':
+      return 'success';
+    case 'enroll':
+    case 'quiz_create':
+      return 'info';
+    case 'quiz_complete':
+      return 'award';
+    default:
+      return 'info';
+  }
+}
+
 export async function GET(req) {
   let userEmail = "";
   
@@ -70,19 +86,15 @@ export async function GET(req) {
     }
 
     userEmail = user.primaryEmailAddress.emailAddress;
-    const { courseContent, ...courseColumns } = getTableColumns(coursesTable);
 
     let enrolledCourses = [];
     try {
       enrolledCourses = await db
-        .select({
-          courses: courseColumns,
-          enrollCourse: enrollCourseTable,
-        })
+        .select()
         .from(coursesTable)
         .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
         .where(eq(enrollCourseTable.userEmail, userEmail))
-        .orderBy(desc(enrollCourseTable.id))
+        .orderBy(desc(enrollCourseTable.lastActivityAt))
         .limit(50);
     } catch (err) {
       console.error("[Dashboard] Enrolled courses query failed:", err.message);
@@ -91,6 +103,7 @@ export async function GET(req) {
 
     let userCourses = [];
     try {
+      const { courseContent, ...courseColumns } = getTableColumns(coursesTable);
       userCourses = await db
         .select({
           ...courseColumns,
@@ -154,15 +167,31 @@ export async function GET(req) {
       }
     }
 
+    let recentActivities = [];
+    try {
+      recentActivities = await db
+        .select()
+        .from(userActivityTable)
+        .where(eq(userActivityTable.userEmail, userEmail))
+        .orderBy(desc(userActivityTable.createdAt))
+        .limit(10);
+    } catch (err) {
+      console.error("[Dashboard] Activities query failed:", err.message);
+      recentActivities = [];
+    }
+
     let totalChapters = 0;
     let completedChaptersCount = 0;
     let completedCourses = 0;
     let inProgressCourses = 0;
 
     const perCourseProgress = (enrolledCourses || []).map(enrollment => {
+      const course = enrollment?.courses;
+      const enroll = enrollment?.enrollCourse;
+      
       const { progress, completedChapters, totalChapters: courseTotal } = calculateCourseProgress(
-        enrollment?.courses,
-        enrollment?.enrollCourse
+        course,
+        enroll
       );
 
       totalChapters += courseTotal;
@@ -175,13 +204,13 @@ export async function GET(req) {
       }
 
       return {
-        courseId: enrollment?.courses?.cid || '',
-        courseName: enrollment?.courses?.name || 'Untitled Course',
+        courseId: course?.cid || '',
+        courseName: course?.name || 'Untitled Course',
         progress,
         completedChapters,
         totalChapters: courseTotal,
-        category: enrollment?.courses?.category || '',
-        level: enrollment?.courses?.level || ''
+        category: course?.category || '',
+        level: course?.level || ''
       };
     });
 
@@ -189,49 +218,12 @@ export async function GET(req) {
       ? Math.round((completedChaptersCount / totalChapters) * 100)
       : 0;
 
-    const recentActivity = [];
-
-    const recentEnrollments = (enrolledCourses || []).slice(0, 3);
-    recentEnrollments.forEach(enrollment => {
-      if (enrollment?.courses?.name) {
-        recentActivity.push({
-          id: `enroll-${enrollment?.enrollCourse?.id || Date.now()}`,
-          type: 'info',
-          title: `Enrolled in ${enrollment.courses.name}`,
-          timestamp: new Date().toISOString()
-        });
-      }
-    });
-
-    perCourseProgress.forEach(course => {
-      if (course.progress >= 100) {
-        recentActivity.push({
-          id: `complete-${course.courseId}`,
-          type: 'success',
-          title: `Completed ${course.courseName}`,
-          timestamp: new Date().toISOString()
-        });
-      } else if (course.completedChapters > 0) {
-        recentActivity.push({
-          id: `progress-${course.courseId}`,
-          type: 'info',
-          title: `${course.completedChapters}/${course.totalChapters} chapters in ${course.courseName}`,
-          timestamp: new Date().toISOString()
-        });
-      }
-    });
-
-    (achievements || []).slice(0, 3).forEach(achievement => {
-      recentActivity.push({
-        id: `achievement-${achievement.id}`,
-        type: 'award',
-        title: `Earned: ${achievement.achievementName}`,
-        timestamp: achievement.earnedAt || new Date().toISOString()
-      });
-    });
-
-    recentActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    const limitedActivity = recentActivity.slice(0, 10);
+    const formattedActivities = recentActivities.map(activity => ({
+      id: `activity-${activity.id}`,
+      type: getActivityDisplayType(activity.actionType),
+      title: activity.title,
+      timestamp: activity.createdAt
+    }));
 
     const dashboardData = {
       courses: {
@@ -254,7 +246,7 @@ export async function GET(req) {
         totalCount: (quizzes || []).length
       },
       achievements: achievements || [],
-      recentActivity: limitedActivity,
+      recentActivity: formattedActivities,
       user: {
         email: userEmail,
         isOnboarded: userDbResult[0]?.isOnboarded ?? false
