@@ -91,17 +91,15 @@ export async function GET(req) {
       );
     }
 
-    const userEmail = user.primaryEmailAddress?.emailAddress;
-
     const result = await db
       .select()
       .from(quizzesTable)
-      .where(eq(quizzesTable.userEmail, userEmail))
       .orderBy(desc(quizzesTable.createdAt));
 
     return NextResponse.json({
       success: true,
-      quizzes: serialize(result)
+      quizzes: serialize(result),
+      currentUserId: user.id
     });
 
   } catch (error) {

@@ -219,26 +219,26 @@ const ArchitectureSection = ({ architecture }) => {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
       {sections.map(({ key, label, icon: Icon, items }) => (
-        <div key={key} className="bg-muted/30 rounded-xl p-4 border border-border/50">
-          <div className="flex items-center gap-2 mb-3">
+        <div key={key} className="bg-muted/30 rounded-xl p-3 sm:p-4 border border-border/50">
+          <div className="flex items-center gap-2 mb-2 sm:mb-3">
             <div className="p-1.5 rounded-md bg-primary/10">
-              <Icon className="h-4 w-4 text-primary" />
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
             </div>
             <span className="font-medium text-sm">{label}</span>
           </div>
           {items.length > 0 ? (
-            <ul className="space-y-2">
+            <ul className="space-y-1.5 sm:space-y-2">
               {items.map((item, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <ChevronRight className="h-3 w-3 text-primary" />
-                  {item}
+                <li key={i} className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                  <ChevronRight className="h-3 w-3 text-primary shrink-0" />
+                  <span className="break-words">{item}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground italic">Not specified</p>
+            <p className="text-xs sm:text-sm text-muted-foreground italic">Not specified</p>
           )}
         </div>
       ))}
@@ -250,17 +250,17 @@ const ProjectGuidanceRenderer = ({ guidance }) => {
   if (!guidance) return null;
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      <div className="text-center space-y-4 pb-6 border-b border-border/50">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-          <Target className="h-4 w-4" />
+    <div className="space-y-6 sm:space-y-8 w-full max-w-4xl mx-auto">
+      <div className="text-center space-y-3 sm:space-y-4 pb-4 sm:pb-6 border-b border-border/50">
+        <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-primary/10 text-primary text-xs sm:text-sm font-medium">
+          <Target className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           Project Guidance
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">
+        <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text px-2">
           {guidance.projectTitle}
         </h1>
         {guidance.overview && (
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base lg:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed px-2">
             {guidance.overview}
           </p>
         )}
@@ -306,7 +306,7 @@ const ProjectGuidanceRenderer = ({ guidance }) => {
         </SectionCard>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {guidance.commonMistakes && guidance.commonMistakes.length > 0 && (
           <SectionCard icon={AlertTriangle} title="Common Mistakes" variant="warning">
             <div className="space-y-3">
