@@ -46,16 +46,6 @@ export const quizzesTable = pgTable('quizzes', {
   createdAt: timestamp().notNull().defaultNow()
 })
 
-export const adminTable = pgTable('admins', {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  email: varchar({ length: 255 }).notNull().unique(),
-  password: varchar({ length: 255 }).notNull(),
-  name: varchar({ length: 255 }).notNull(),
-  role: varchar({ length: 50 }).notNull().default('admin'),
-  createdAt: timestamp().notNull().defaultNow(),
-  lastLogin: timestamp()
-})
-
 // Add achievements table for gamification
 export const achievementsTable = pgTable('achievements', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
