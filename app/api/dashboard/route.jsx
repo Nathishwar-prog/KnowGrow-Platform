@@ -25,23 +25,56 @@ function calculateCourseProgress(course, enrollData) {
   return { progress, completedChapters, totalChapters };
 }
 
+function createEmptyDashboard(userEmail) {
+  return {
+    courses: {
+      enrolled: [],
+      created: [],
+      totalEnrolled: 0,
+      totalCreated: 0
+    },
+    progress: {
+      overallPercentage: 0,
+      totalChapters: 0,
+      completedChapters: 0,
+      completedCourses: 0,
+      inProgressCourses: 0,
+      totalCourses: 0,
+      perCourse: []
+    },
+    quizzes: {
+      list: [],
+      totalCount: 0
+    },
+    achievements: [],
+    recentActivity: [],
+    user: {
+      email: userEmail || "",
+      isOnboarded: false
+    },
+    focusState: {}
+  };
+}
+
 export async function GET(req) {
+  let userEmail = "";
+  
   try {
     const user = await currentUser();
 
     if (!user?.primaryEmailAddress?.emailAddress) {
       return NextResponse.json(
-        { success: false, error: "User not authenticated" },
+        { success: false, error: "User not authenticated", data: createEmptyDashboard("") },
         { status: 401 }
       );
     }
 
-    const userEmail = user.primaryEmailAddress.emailAddress;
-
+    userEmail = user.primaryEmailAddress.emailAddress;
     const { courseContent, ...courseColumns } = getTableColumns(coursesTable);
 
-    const [enrolledCoursesResult, userCoursesResult, quizzesResult, userDbResult] = await Promise.all([
-      db
+    let enrolledCourses = [];
+    try {
+      enrolledCourses = await db
         .select({
           courses: courseColumns,
           enrollCourse: enrollCourseTable,
@@ -50,9 +83,15 @@ export async function GET(req) {
         .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
         .where(eq(enrollCourseTable.userEmail, userEmail))
         .orderBy(desc(enrollCourseTable.id))
-        .limit(50),
+        .limit(50);
+    } catch (err) {
+      console.error("[Dashboard] Enrolled courses query failed:", err.message);
+      enrolledCourses = [];
+    }
 
-      db
+    let userCourses = [];
+    try {
+      userCourses = await db
         .select({
           ...courseColumns,
           hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
@@ -60,9 +99,27 @@ export async function GET(req) {
         .from(coursesTable)
         .where(eq(coursesTable.userEmail, userEmail))
         .orderBy(desc(coursesTable.id))
-        .limit(100),
+        .limit(100);
+    } catch (err) {
+      console.error("[Dashboard] User courses query failed:", err.message);
+      userCourses = [];
+    }
 
-      db
+    let userDbResult = [];
+    try {
+      userDbResult = await db
+        .select({ id: usersTable.id, isOnboarded: usersTable.isOnboarded })
+        .from(usersTable)
+        .where(eq(usersTable.email, userEmail))
+        .limit(1);
+    } catch (err) {
+      console.error("[Dashboard] User query failed:", err.message);
+      userDbResult = [];
+    }
+
+    let quizzes = [];
+    try {
+      quizzes = await db
         .select({
           id: quizzesTable.id,
           quizId: quizzesTable.quizId,
@@ -75,39 +132,37 @@ export async function GET(req) {
         .from(quizzesTable)
         .where(eq(quizzesTable.userEmail, userEmail))
         .orderBy(desc(quizzesTable.createdAt))
-        .limit(20),
-
-      db
-        .select({ id: usersTable.id, isOnboarded: usersTable.isOnboarded })
-        .from(usersTable)
-        .where(eq(usersTable.email, userEmail))
-        .limit(1)
-    ]);
+        .limit(20);
+    } catch (err) {
+      console.error("[Dashboard] Quizzes query failed:", err.message);
+      quizzes = [];
+    }
 
     let achievements = [];
     if (userDbResult.length > 0) {
-      const userId = userDbResult[0].id;
-      achievements = await db
-        .select()
-        .from(achievementsTable)
-        .where(eq(achievementsTable.userId, userId))
-        .orderBy(desc(achievementsTable.earnedAt))
-        .limit(20);
+      try {
+        const userId = userDbResult[0].id;
+        achievements = await db
+          .select()
+          .from(achievementsTable)
+          .where(eq(achievementsTable.userId, userId))
+          .orderBy(desc(achievementsTable.earnedAt))
+          .limit(20);
+      } catch (err) {
+        console.error("[Dashboard] Achievements query failed:", err.message);
+        achievements = [];
+      }
     }
-
-    const enrolledCourses = enrolledCoursesResult || [];
-    const userCourses = userCoursesResult || [];
-    const quizzes = quizzesResult || [];
 
     let totalChapters = 0;
     let completedChaptersCount = 0;
     let completedCourses = 0;
     let inProgressCourses = 0;
 
-    const perCourseProgress = enrolledCourses.map(enrollment => {
+    const perCourseProgress = (enrolledCourses || []).map(enrollment => {
       const { progress, completedChapters, totalChapters: courseTotal } = calculateCourseProgress(
-        enrollment.courses,
-        enrollment.enrollCourse
+        enrollment?.courses,
+        enrollment?.enrollCourse
       );
 
       totalChapters += courseTotal;
@@ -120,13 +175,13 @@ export async function GET(req) {
       }
 
       return {
-        courseId: enrollment.courses?.cid || '',
-        courseName: enrollment.courses?.name || 'Untitled Course',
+        courseId: enrollment?.courses?.cid || '',
+        courseName: enrollment?.courses?.name || 'Untitled Course',
         progress,
         completedChapters,
         totalChapters: courseTotal,
-        category: enrollment.courses?.category || '',
-        level: enrollment.courses?.level || ''
+        category: enrollment?.courses?.category || '',
+        level: enrollment?.courses?.level || ''
       };
     });
 
@@ -136,11 +191,11 @@ export async function GET(req) {
 
     const recentActivity = [];
 
-    const recentEnrollments = enrolledCourses.slice(0, 3);
+    const recentEnrollments = (enrolledCourses || []).slice(0, 3);
     recentEnrollments.forEach(enrollment => {
-      if (enrollment.courses?.name) {
+      if (enrollment?.courses?.name) {
         recentActivity.push({
-          id: `enroll-${enrollment.enrollCourse?.id || Date.now()}`,
+          id: `enroll-${enrollment?.enrollCourse?.id || Date.now()}`,
           type: 'info',
           title: `Enrolled in ${enrollment.courses.name}`,
           timestamp: new Date().toISOString()
@@ -166,7 +221,7 @@ export async function GET(req) {
       }
     });
 
-    achievements.slice(0, 3).forEach(achievement => {
+    (achievements || []).slice(0, 3).forEach(achievement => {
       recentActivity.push({
         id: `achievement-${achievement.id}`,
         type: 'award',
@@ -180,10 +235,10 @@ export async function GET(req) {
 
     const dashboardData = {
       courses: {
-        enrolled: enrolledCourses,
-        created: userCourses,
-        totalEnrolled: enrolledCourses.length,
-        totalCreated: userCourses.length
+        enrolled: enrolledCourses || [],
+        created: userCourses || [],
+        totalEnrolled: (enrolledCourses || []).length,
+        totalCreated: (userCourses || []).length
       },
       progress: {
         overallPercentage,
@@ -191,12 +246,12 @@ export async function GET(req) {
         completedChapters: completedChaptersCount,
         completedCourses,
         inProgressCourses,
-        totalCourses: enrolledCourses.length,
+        totalCourses: (enrolledCourses || []).length,
         perCourse: perCourseProgress
       },
       quizzes: {
-        list: quizzes,
-        totalCount: quizzes.length
+        list: quizzes || [],
+        totalCount: (quizzes || []).length
       },
       achievements: achievements || [],
       recentActivity: limitedActivity,
@@ -213,10 +268,12 @@ export async function GET(req) {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error("[API /dashboard] Error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch dashboard data.", data: null },
-      { status: 500 }
-    );
+    console.error("[API /dashboard] Critical error:", error);
+    return NextResponse.json({
+      success: true,
+      data: createEmptyDashboard(userEmail),
+      timestamp: Date.now(),
+      partial: true
+    });
   }
 }
