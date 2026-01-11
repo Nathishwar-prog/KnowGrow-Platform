@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db } from "/config/db";                // make sure these imports exist
-import { usersTable } from "/config/schema";   // adjust to your schema location
+import { db } from "../../../config/db";                // make sure these imports exist
+import { usersTable } from "../../../config/schema";   // adjust to your schema location
 import { eq } from "drizzle-orm";
 
 export async function POST(req) {
