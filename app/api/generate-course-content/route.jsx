@@ -1,4 +1,5 @@
-import { generateContent, parseJsonResponse } from "@/lib/generateContent";
+import { generateContent } from "@/lib/generateContent";
+import { validateAIResponse, CourseContentSchema } from "../../../@/lib/ai-validator";
 import { sanitizeChapterTitle, sanitizeSubTopic } from "@/lib/titleSanitizer";
 import axios from "axios";
 import { db } from "../../../config/db";
@@ -271,17 +272,18 @@ export async function POST(req) {
 
           if (aiResult.success) {
             sendProgress('progress', `Chapter ${chapterNum}: Content generated via ${aiResult.provider}`);
-            const parsed = parseJsonResponse(aiResult.content);
             
-            if (parsed.success) {
+            const validation = validateAIResponse(aiResult.content, CourseContentSchema);
+            
+            if (validation.success) {
               courseData = {
-                ...parsed.data,
+                ...validation.data,
                 chapterName: normalizedTitle
               };
               sendProgress('progress', `Chapter ${chapterNum}: Content parsed successfully`);
             } else {
-              console.error(`[Course Content] Failed to parse AI response for chapter ${chapterNum}`);
-              sendProgress('warning', `Chapter ${chapterNum}: Content parsing issue, using fallback`);
+              console.error(`[Course Content] Validation failed for chapter ${chapterNum}:`, validation.error);
+              sendProgress('warning', `Chapter ${chapterNum}: Content structure issue, using fallback`);
               courseData.error = true;
             }
           } else {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { generateContent, parseJsonResponse } from "../../../@/lib/generateContent";
+import { generateContent } from "../../../@/lib/generateContent";
+import { validateAIResponse, QuizSchema } from "../../../@/lib/ai-validator";
 import { currentUser } from "@clerk/nextjs/server";
 
 const rateLimitMap = new Map();
@@ -131,18 +132,23 @@ Generate a comprehensive quiz following the JSON format above.`;
 
     console.log(`[Quiz Generate] Generated via ${aiResult.provider}`);
 
-    const parsed = parseJsonResponse(aiResult.content);
+    const validation = validateAIResponse(aiResult.content, QuizSchema);
 
-    if (!parsed.success) {
+    if (!validation.success) {
+      console.error("[Quiz Generate] Validation failed:", validation.error);
       return NextResponse.json(
-        { success: false, error: "Failed to generate quiz format. Please try again." },
+        { 
+          success: false, 
+          error: validation.error,
+          details: validation.details
+        },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      quiz: parsed.data,
+      quiz: validation.data,
       provider: aiResult.provider,
       timestamp: new Date().toISOString()
     });

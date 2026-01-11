@@ -1,6 +1,7 @@
 import { coursesTable } from "../../../config/schema";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { generateContent, parseJsonResponse } from "../../../@/lib/generateContent";
+import { generateContent } from "../../../@/lib/generateContent";
+import { validateAIResponse, CourseLayoutSchema } from "../../../@/lib/ai-validator";
 import { NextResponse } from "next/server";
 import { db } from "../../../config/db";
 import axios from "axios";
@@ -141,16 +142,21 @@ export async function POST(request) {
 
     console.log(`[Course Layout] Generated via ${aiResult.provider}`);
 
-    const parsed = parseJsonResponse(aiResult.content);
+    const validation = validateAIResponse(aiResult.content, CourseLayoutSchema);
     
-    if (!parsed.success) {
+    if (!validation.success) {
+      console.error("[Course Layout] Validation failed:", validation.error);
       return NextResponse.json(
-        { success: false, error: "Failed to parse AI response. Please try again." },
+        { 
+          success: false, 
+          error: validation.error,
+          details: validation.details 
+        },
         { status: 500 }
       );
     }
 
-    const JSONResponse = parsed.data;
+    const JSONResponse = validation.data;
     const ImagePrompt = JSONResponse?.course?.bannerImagePrompt || "";
     const bannerImageUrl = await GenerateImage(ImagePrompt);
 
