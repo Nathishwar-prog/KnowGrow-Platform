@@ -1,40 +1,49 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Appheader from "../../workspace/_components/AppHeader";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import WorkspaceNavbar from "../../workspace/_components/WorkspaceNavbar";
 import ChapterListSidebar from "../_components/ChapterListSidebar";
 import ChapterContent from "../_components/ChapterContent";
 import { useParams } from "next/navigation";
-import axios from "axios";
+import { api, cancelRequest } from "../../../@/lib/api";
 
 function Course() {
   const { courseId } = useParams();
-  const [courseInfo, setCourseInfo] = useState(null); // initial state null
-  const [loading, setLoading] = useState(true); // loading state
+  const [courseInfo, setCourseInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const mountedRef = useRef(true);
 
-  // fetch data inside useEffect
-  useEffect(() => {
-
-
-    fetchCourse();
+  const fetchCourse = useCallback(async () => {
+    if (!courseId) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    const result = await api.enroll.get(courseId);
+    
+    if (!mountedRef.current) return;
+    
+    if (result.success) {
+      setCourseInfo(result.data);
+    } else if (!result.isCanceled) {
+      setError(result.error);
+    }
+    
+    setLoading(false);
   }, [courseId]);
 
-  const fetchCourse = async () => {
-      try {
-        setLoading(true);
-        const result = await axios.get(
-          "/api/enroll-course?courseId=" + courseId
-        );
-        setCourseInfo(result.data); // just set state, do NOT await
-      } catch (error) {
-        console.error("Failed to fetch course:", error);
-      } finally {
-        setLoading(false);
-      }
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchCourse();
+    
+    return () => {
+      mountedRef.current = false;
+      cancelRequest(`/api/enroll-course?courseId=${courseId}`);
     };
+  }, [courseId, fetchCourse]);
 
-  // show loading while fetching
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950 dark:to-background">
@@ -44,12 +53,27 @@ function Course() {
             <div className="h-6 w-6 rounded-full bg-emerald-500 animate-ping"></div>
           </div>
         </div>
-        <span className="ml-4 text-lg font-semibold text-emerald-700 dark:text-emerald-300">Preparing your personalized course…</span>
+        <span className="ml-4 text-lg font-semibold text-emerald-700 dark:text-emerald-300">
+          Preparing your personalized course…
+        </span>
       </div>
     );
   }
 
-  // show error if fetch failed
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <p className="text-destructive mb-4">{error}</p>
+        <button 
+          onClick={fetchCourse}
+          className="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   if (!courseInfo) {
     return (
       <div className="flex items-center justify-center h-screen text-red-500">
@@ -58,14 +82,11 @@ function Course() {
     );
   }
 
-  // render sidebar and content only when courseInfo is ready
   return (
     <div className="h-screen flex flex-col">
-      {/* Header at the top */}
-      <Appheader hideSidebar={true} />
+      <WorkspaceNavbar />
 
-      {/* Sidebar + Content */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && (
           <div className="sticky top-0 h-[calc(100vh-56px)] overflow-y-auto">
             <ChapterListSidebar courseInfo={courseInfo} />
@@ -75,12 +96,12 @@ function Course() {
           <div className="flex items-center justify-between px-4 pt-4">
             <button
               className="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-md border bg-card hover:bg-accent transition-colors"
-              onClick={()=> setSidebarOpen(!sidebarOpen)}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
             >
-              {sidebarOpen ? 'Hide Chapters' : 'Show Chapters'}
+              {sidebarOpen ? "Hide Chapters" : "Show Chapters"}
             </button>
           </div>
-          <ChapterContent courseInfo={courseInfo} refreshData={()=>fetchCourse()} />
+          <ChapterContent courseInfo={courseInfo} refreshData={fetchCourse} />
         </div>
       </div>
     </div>

@@ -1,11 +1,12 @@
-import { boolean, integer, json, pgTable, varchar, timestamp } from "drizzle-orm/pg-core";
+import { boolean, integer, json, pgTable, varchar, timestamp, uuid, serial } from "drizzle-orm/pg-core";
 
 export const usersTable = pgTable("users", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   name: varchar({ length: 255 }).notNull(),
   age: integer().notNull(),
   email: varchar({ length: 255 }).notNull().unique(),
-  subscriptionId: varchar({ length: 64 })
+  subscriptionId: varchar({ length: 64 }),
+  isOnboarded: boolean().default(false)
 });
 
 
@@ -28,11 +29,24 @@ export const enrollCourseTable = pgTable('enrollCourse',{
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   cid: varchar({ length: 255 }).references(() => coursesTable.cid),
   userEmail: varchar({ length: 255 }).references(() => usersTable.email).notNull(),
-  completedChapters: json()
+  completedChapters: json(),
+  enrolledAt: timestamp().defaultNow(),
+  lastActivityAt: timestamp().defaultNow()
+})
+
+export const userActivityTable = pgTable('user_activity', {
+  id: serial().primaryKey(),
+  userEmail: varchar({ length: 255 }).notNull(),
+  actionType: varchar({ length: 100 }).notNull(),
+  title: varchar({ length: 500 }).notNull(),
+  entityId: varchar({ length: 255 }),
+  entityType: varchar({ length: 50 }),
+  metadata: json(),
+  createdAt: timestamp().notNull().defaultNow()
 })
 
 export const quizzesTable = pgTable('quizzes', {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  id: uuid().primaryKey().defaultRandom(),
   quizId: varchar({ length: 255 }).notNull().unique(),
   title: varchar({ length: 500 }).notNull(),
   description: varchar({ length: 1000 }),
@@ -41,17 +55,8 @@ export const quizzesTable = pgTable('quizzes', {
   questionCount: integer().notNull(),
   quizData: json().notNull(),
   userEmail: varchar({ length: 255 }).references(() => usersTable.email).notNull(),
+  createdBy: varchar({ length: 255 }),
   createdAt: timestamp().notNull().defaultNow()
-})
-
-export const adminTable = pgTable('admins', {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  email: varchar({ length: 255 }).notNull().unique(),
-  password: varchar({ length: 255 }).notNull(),
-  name: varchar({ length: 255 }).notNull(),
-  role: varchar({ length: 50 }).notNull().default('admin'),
-  createdAt: timestamp().notNull().defaultNow(),
-  lastLogin: timestamp()
 })
 
 // Add achievements table for gamification

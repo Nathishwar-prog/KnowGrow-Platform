@@ -1,5 +1,33 @@
 "use client"
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useMemo } from "react";
+
+function normalizeChapterTitle(chapter, index) {
+    const rawTitle = chapter?.chapterName || chapter?.name || '';
+    
+    const cleaned = rawTitle
+        .replace(/^chapter\s*\d+\s*[:\-–]\s*/i, '')
+        .replace(/^\d+\.\s*/, '')
+        .trim();
+    
+    if (cleaned.length > 40) {
+        return cleaned.substring(0, 37) + '...';
+    }
+    
+    return cleaned || `Chapter ${index + 1}`;
+}
+
+function normalizeTopics(chapter) {
+    const topics = chapter?.topics || [];
+    return topics.map(t => {
+        if (typeof t === 'string') {
+            const cleaned = t.replace(/^\d+\.\s*/, '').trim();
+            return cleaned.length > 50 ? cleaned.substring(0, 47) + '...' : cleaned;
+        }
+        const name = t?.name || t?.topic || '';
+        const cleaned = name.replace(/^\d+\.\s*/, '').trim();
+        return cleaned.length > 50 ? cleaned.substring(0, 47) + '...' : cleaned;
+    }).filter(Boolean);
+}
 
 function drawCourseMap(canvas, courseLayout){
     const ctx = canvas.getContext("2d");
@@ -12,26 +40,22 @@ function drawCourseMap(canvas, courseLayout){
 
     ctx.clearRect(0, 0, width, height);
 
-    // Colors from CSS variables
     const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#10b981';
     const muted = getComputedStyle(document.documentElement).getPropertyValue('--muted-foreground').trim() || '#6b7280';
     const nodeBg = getComputedStyle(document.documentElement).getPropertyValue('--card').trim() || '#ffffff';
 
-    // Soft background gradient
     const grad = ctx.createLinearGradient(0, 0, width, height);
     grad.addColorStop(0, 'rgba(16, 185, 129, 0.06)');
     grad.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
 
-    // Layout
     const padding = 24;
     const colGap = 160;
     const rowGap = 72;
     const chapterX = padding + 12;
     const topicX = chapterX + colGap;
 
-    // Title
     ctx.fillStyle = muted;
     ctx.font = '700 14px ui-sans-serif, system-ui, -apple-system';
     ctx.fillText('Learning Roadmap', padding, padding + 4);
@@ -40,13 +64,11 @@ function drawCourseMap(canvas, courseLayout){
     let y = padding + 28;
 
     chapters.forEach((chapter, chapterIndex) => {
-        // Chapter node
         const chW = 200;
         const chH = 40;
         const chX = chapterX;
         const chY = y;
 
-        // Connection to next chapter (vertical)
         if (chapterIndex > 0){
             ctx.strokeStyle = primary;
             ctx.lineWidth = 2;
@@ -56,7 +78,6 @@ function drawCourseMap(canvas, courseLayout){
             ctx.stroke();
         }
 
-        // Chapter box with subtle shadow
         ctx.fillStyle = nodeBg;
         ctx.strokeStyle = primary;
         ctx.lineWidth = 2;
@@ -67,16 +88,24 @@ function drawCourseMap(canvas, courseLayout){
         ctx.restore();
         ctx.fillStyle = primary;
         ctx.font = '600 12px ui-sans-serif, system-ui, -apple-system';
-        const chTitle = `Chapter ${chapterIndex+1}: ${chapter?.chapterName || ''}`;
-        ctx.fillText(chTitle, chX + 10, chY + 24);
+        
+        const normalizedTitle = normalizeChapterTitle(chapter, chapterIndex);
+        const chTitle = `Ch ${chapterIndex+1}: ${normalizedTitle}`;
+        const maxTitleWidth = chW - 20;
+        let displayTitle = chTitle;
+        if (ctx.measureText(chTitle).width > maxTitleWidth) {
+            while (ctx.measureText(displayTitle + '...').width > maxTitleWidth && displayTitle.length > 10) {
+                displayTitle = displayTitle.slice(0, -1);
+            }
+            displayTitle += '...';
+        }
+        ctx.fillText(displayTitle, chX + 10, chY + 24);
 
-        // Topics list
-        const topics = chapter?.topics || [];
+        const topics = normalizeTopics(chapter);
         const topicBoxH = Math.max(48, topics.length * 26 + 20);
         const tpX = topicX;
         const tpY = chY;
 
-        // Edge from chapter to topics
         ctx.strokeStyle = primary;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -84,23 +113,30 @@ function drawCourseMap(canvas, courseLayout){
         ctx.lineTo(tpX, tpY + 16);
         ctx.stroke();
 
-        // Topic container with badge header
         ctx.fillStyle = nodeBg;
         ctx.strokeStyle = primary;
         roundRect(ctx, tpX, tpY, 280, topicBoxH, 10, true, true);
-        // Header badge
+        
         ctx.fillStyle = primary;
         roundRect(ctx, tpX + 10, tpY + 10, 64, 18, 8, true, false);
         ctx.fillStyle = nodeBg;
         ctx.font = '700 10px ui-sans-serif, system-ui, -apple-system';
         ctx.fillText('TOPICS', tpX + 22, tpY + 23);
-        // List text
+        
         ctx.fillStyle = muted;
         ctx.font = '500 12px ui-sans-serif, system-ui, -apple-system';
 
         topics.forEach((t, i)=>{
             const text = `${i+1}. ${t}`;
-            ctx.fillText(text, tpX + 14, tpY + 38 + i*26);
+            const maxWidth = 260;
+            let displayText = text;
+            if (ctx.measureText(text).width > maxWidth) {
+                while (ctx.measureText(displayText + '...').width > maxWidth && displayText.length > 10) {
+                    displayText = displayText.slice(0, -1);
+                }
+                displayText += '...';
+            }
+            ctx.fillText(displayText, tpX + 14, tpY + 38 + i*26);
         });
 
         y += Math.max(chH, topicBoxH) + rowGap;
@@ -132,13 +168,26 @@ function CourseMapPanel({ course }){
     const canvasRef = useRef(null);
     const courseLayout = course?.courseJson?.course;
 
+    const normalizedLayout = useMemo(() => {
+        if (!courseLayout?.chapters) return null;
+        
+        return {
+            ...courseLayout,
+            chapters: courseLayout.chapters.map((ch, idx) => ({
+                ...ch,
+                _normalizedTitle: normalizeChapterTitle(ch, idx),
+                _normalizedTopics: normalizeTopics(ch)
+            }))
+        };
+    }, [courseLayout]);
+
     useEffect(()=>{
-        if (!canvasRef.current || !courseLayout) return;
-        drawCourseMap(canvasRef.current, courseLayout);
-        const onResize = ()=> drawCourseMap(canvasRef.current, courseLayout);
+        if (!canvasRef.current || !normalizedLayout) return;
+        drawCourseMap(canvasRef.current, normalizedLayout);
+        const onResize = ()=> drawCourseMap(canvasRef.current, normalizedLayout);
         window.addEventListener('resize', onResize);
         return ()=> window.removeEventListener('resize', onResize);
-    }, [courseLayout]);
+    }, [normalizedLayout]);
 
     return (
         <div className="rounded-2xl border overflow-hidden bg-gradient-to-br from-white to-emerald-50 dark:from-emerald-900/10 dark:to-emerald-900/20">
@@ -160,5 +209,3 @@ function CourseMapPanel({ course }){
 }
 
 export default CourseMapPanel;
-
-

@@ -1,173 +1,199 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { Play, Pause, RotateCcw, Coffee, Zap } from "lucide-react";
+import React from "react";
+import { Play, Pause, RotateCcw, Coffee, Zap, Square, Sparkles } from "lucide-react";
 import { Card, CardContent } from "../../../@/components/ui/card";
 import { Button } from "../../../@/components/ui/button";
+import { cn } from "../../../@/lib/utils";
+import { useFocusTimer } from "../../../context/FocusTimerContext";
 
 const StudyTimer = () => {
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
-  const [isActive, setIsActive] = useState(false);
-  const [mode, setMode] = useState("focus"); // focus, shortBreak, longBreak
-  const [sessions, setSessions] = useState(0);
-  const intervalRef = useRef(null);
+  const {
+    isFocusActive,
+    isOnBreak,
+    remainingTime,
+    sessionType,
+    sessionsCompleted,
+    startFocus,
+    pauseFocus,
+    resumeFocus,
+    startBreak,
+    stopFocusMode,
+    FOCUS_DURATION,
+    BREAK_DURATION
+  } = useFocusTimer();
 
-  // Timer modes
-  const modes = {
-    focus: { duration: 25 * 60, label: "Focus Time", color: "from-red-500 to-orange-500" },
-    shortBreak: { duration: 5 * 60, label: "Short Break", color: "from-green-500 to-emerald-500" },
-    longBreak: { duration: 15 * 60, label: "Long Break", color: "from-blue-500 to-indigo-500" }
-  };
-
-  // Format time for display
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Start/pause timer
-  const toggleTimer = () => {
-    setIsActive(!isActive);
-  };
+  const isRunning = isFocusActive || isOnBreak;
+  const initialTime = sessionType === "focus" ? FOCUS_DURATION : BREAK_DURATION;
 
-  // Reset timer
-  const resetTimer = () => {
-    setIsActive(false);
-    setTimeLeft(modes[mode].duration);
-  };
-
-  // Switch mode
-  const switchMode = (newMode) => {
-    setIsActive(false);
-    setMode(newMode);
-    setTimeLeft(modes[newMode].duration);
-  };
-
-  // Complete session
-  const completeSession = () => {
-    if (mode === "focus") {
-      setSessions(sessions + 1);
-      
-      // After 4 focus sessions, take a long break
-      if ((sessions + 1) % 4 === 0) {
-        switchMode("longBreak");
-      } else {
-        switchMode("shortBreak");
+  const handleToggle = () => {
+    if (isRunning) {
+      if (sessionType === "focus") {
+        pauseFocus();
       }
     } else {
-      switchMode("focus");
+      if (sessionType === "focus" && remainingTime < FOCUS_DURATION && remainingTime > 0) {
+        resumeFocus();
+      } else {
+        startFocus();
+      }
     }
   };
 
-  // Timer effect
-  useEffect(() => {
-    if (isActive && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (isActive && timeLeft === 0) {
-      setIsActive(false);
-      // Timer completed
-      completeSession();
-    }
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [isActive, timeLeft]);
-
-  // Reset timer when mode changes
-  useEffect(() => {
-    setTimeLeft(modes[mode].duration);
-  }, [mode]);
+  const radius = 85;
+  const circumference = 2 * Math.PI * radius;
+  const progressOffset = circumference - ((initialTime - remainingTime) / initialTime) * circumference;
 
   return (
-    <Card className="mb-8">
-      <CardContent className="p-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Study Timer</h2>
-          <p className="text-gray-600 mb-6">Stay focused with the Pomodoro Technique</p>
-          
-          <div className={`relative inline-flex items-center justify-center w-64 h-64 rounded-full bg-gradient-to-br ${modes[mode].color} mb-6`}>
-            <div className="absolute inset-4 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-gray-900 dark:text-white">
-                  {formatTime(timeLeft)}
+    <div className="relative">
+      <Card className="mb-8 border-none shadow-2xl bg-card/60 backdrop-blur-xl overflow-hidden ring-1 ring-border/50">
+        <CardContent className="p-8">
+          <div className="flex flex-col items-center">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-500 text-xs font-bold uppercase tracking-widest mb-3">
+                {sessionType === "focus" ? (
+                  <>
+                    <Zap className="w-3 h-3 fill-current" />
+                    Focus Session
+                  </>
+                ) : (
+                  <>
+                    <Coffee className="w-3 h-3" />
+                    Rest & Recharge
+                  </>
+                )}
+              </div>
+              <h2 className="text-3xl font-black text-foreground tracking-tight">
+                {sessionType === "focus" ? "Deep Work" : "Break Time"}
+              </h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                {sessionType === "focus" ? "Stay focused, your AI coach is watching." : "Stretch, hydrate, and relax your mind."}
+              </p>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-center justify-center gap-12 w-full">
+              <div className="relative w-72 h-72 flex items-center justify-center">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle
+                    cx="50%" cy="50%" r={radius}
+                    className="stroke-muted/30 fill-none"
+                    strokeWidth="8"
+                  />
+                  <circle
+                    cx="50%" cy="50%" r={radius}
+                    className={cn(
+                      "fill-none transition-all duration-1000 ease-linear opacity-20 blur-[4px]",
+                      sessionType === "focus" ? "stroke-indigo-500" : "stroke-emerald-500"
+                    )}
+                    strokeWidth="12"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={progressOffset}
+                    strokeLinecap="round"
+                  />
+                  <circle
+                    cx="50%" cy="50%" r={radius}
+                    className={cn(
+                      "fill-none transition-all duration-1000 ease-linear",
+                      sessionType === "focus" ? "stroke-indigo-500" : "stroke-emerald-500"
+                    )}
+                    strokeWidth="8"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={progressOffset}
+                    strokeLinecap="round"
+                  />
+                </svg>
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className={cn(
+                    "text-7xl font-bold font-mono tracking-tighter tabular-nums transition-colors duration-500",
+                    isRunning ? "text-foreground" : "text-muted-foreground/60"
+                  )}>
+                    {formatTime(remainingTime)}
+                  </div>
+                  <div className="flex gap-1.5 mt-4">
+                    {[1, 2, 3, 4].map((s) => (
+                      <div 
+                        key={s} 
+                        className={cn(
+                          "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                          sessionsCompleted >= s ? "bg-indigo-500 scale-125" : "bg-muted"
+                        )} 
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  {modes[mode].label}
+              </div>
+
+              <div className="flex flex-col gap-4 w-full md:w-64">
+                <Button
+                  onClick={handleToggle}
+                  size="lg"
+                  className={cn(
+                    "h-16 text-lg font-bold rounded-2xl transition-all duration-300 shadow-xl",
+                    isRunning 
+                      ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20" 
+                      : sessionType === "focus"
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20"
+                        : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20"
+                  )}
+                >
+                  {isRunning ? (
+                    <><Pause className="mr-2 h-6 w-6" /> PAUSE</>
+                  ) : (
+                    <><Play className="mr-2 h-6 w-6" /> START {sessionType === "focus" ? "FOCUS" : "BREAK"}</>
+                  )}
+                </Button>
+
+                <div className="flex gap-3">
+                  <Button
+                    onClick={stopFocusMode}
+                    variant="outline"
+                    className="flex-1 h-14 rounded-2xl border-border/50 hover:bg-destructive/10 hover:border-destructive/50 hover:text-destructive group"
+                    title="Stop Focus Mode"
+                  >
+                    <Square className="h-5 w-5 text-muted-foreground group-hover:text-destructive transition-colors" />
+                  </Button>
+                  
+                  {sessionType === "focus" && (
+                    <Button
+                      onClick={startBreak}
+                      variant="secondary"
+                      className="flex-1 h-14 rounded-2xl bg-muted/50 hover:bg-muted"
+                      title="Take a Break"
+                    >
+                      <Coffee className="h-5 w-5 text-indigo-500" />
+                    </Button>
+                  )}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Sessions: {sessions}
+
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground px-1">
+                    <span>DAILY TARGET</span>
+                    <span>{sessionsCompleted}/4 SESSIONS</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-muted rounded-full mt-2 overflow-hidden">
+                    <div 
+                      className="h-full bg-indigo-500 transition-all duration-1000" 
+                      style={{ width: `${Math.min((sessionsCompleted / 4) * 100, 100)}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          
-          <div className="flex justify-center space-x-4 mb-6">
-            <Button
-              onClick={toggleTimer}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
-            >
-              {isActive ? (
-                <>
-                  <Pause className="mr-2 h-4 w-4" />
-                  Pause
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Start
-                </>
-              )}
-            </Button>
-            
-            <Button
-              onClick={resetTimer}
-              variant="outline"
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Reset
-            </Button>
-          </div>
-          
-          <div className="flex justify-center space-x-2">
-            <Button
-              variant={mode === "focus" ? "default" : "outline"}
-              size="sm"
-              onClick={() => switchMode("focus")}
-              className={mode === "focus" ? "bg-red-500 hover:bg-red-600" : ""}
-            >
-              <Zap className="mr-1 h-3 w-3" />
-              Focus
-            </Button>
-            
-            <Button
-              variant={mode === "shortBreak" ? "default" : "outline"}
-              size="sm"
-              onClick={() => switchMode("shortBreak")}
-              className={mode === "shortBreak" ? "bg-green-500 hover:bg-green-600" : ""}
-            >
-              <Coffee className="mr-1 h-3 w-3" />
-              Short
-            </Button>
-            
-            <Button
-              variant={mode === "longBreak" ? "default" : "outline"}
-              size="sm"
-              onClick={() => switchMode("longBreak")}
-              className={mode === "longBreak" ? "bg-blue-500 hover:bg-blue-600" : ""}
-            >
-              <Coffee className="mr-1 h-3 w-3" />
-              Long
-            </Button>
-          </div>
+        </CardContent>
+
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <Sparkles className="w-24 h-24 text-indigo-500" />
         </div>
-      </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 };
 

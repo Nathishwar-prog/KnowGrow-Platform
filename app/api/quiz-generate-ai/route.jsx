@@ -1,5 +1,34 @@
 import { NextResponse } from "next/server";
-import { ai } from "../../../@/lib/ai";
+import { generateContent } from "../../../@/lib/generateContent";
+import { validateAIResponse, QuizSchema } from "../../../@/lib/ai-validator";
+import { currentUser } from "@clerk/nextjs/server";
+
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 30000;
+const MAX_REQUESTS_PER_WINDOW = 2;
+
+function checkRateLimit(userId) {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  
+  if (now - userLimit.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  
+  if (userLimit.count >= MAX_REQUESTS_PER_WINDOW) {
+    const waitTime = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - userLimit.windowStart)) / 1000);
+    return { allowed: false, waitTime };
+  }
+  
+  userLimit.count++;
+  return { allowed: true };
+}
 
 const QUIZ_GENERATE_PROMPT = `You are an expert educational AI that creates comprehensive quizzes and assessments. Your goal is to generate high-quality, educational quizzes that test understanding and reinforce learning.
 
@@ -41,12 +70,36 @@ Remember: Create questions that promote deep understanding, not just memorizatio
 
 export async function POST(req) {
   try {
+    const user = await currentUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    
+    const userId = user.id;
+    const rateCheck = checkRateLimit(userId);
+    
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Please wait ${rateCheck.waitTime} seconds before generating another quiz.` 
+        },
+        { status: 429 }
+      );
+    }
+
     const { topic, difficulty = "medium", questionCount = 5, questionTypes = ["multiple_choice", "short_answer"] } = await req.json();
 
-    const config = {
-      responseMimeType: 'text/plain',
-    };
-    const model = "gemini-2.5-flash";
+    if (!topic) {
+      return NextResponse.json(
+        { success: false, error: "Topic is required" },
+        { status: 400 }
+      );
+    }
     
     const prompt = `${QUIZ_GENERATE_PROMPT}
 
@@ -64,41 +117,30 @@ IMPORTANT: For programming topics, include code examples in questions about:
 
 Generate a comprehensive quiz following the JSON format above.`;
 
-    const contents = [
-      {
-        role: "user",
-        parts: [
-          {
-            text: prompt,
-          },
-        ],
-      },
-    ];
-
-    const response = await ai.models.generateContent({
-      model,
-      config,
-      contents,
+    const aiResult = await generateContent(prompt, {
+      geminiModel: 'gemini-2.5-flash',
+      maxGeminiRetries: 1,
+      geminiBackoffMs: 2000,
     });
 
-    const rawResponse = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
-    // Clean and parse JSON response
-    let quizData = null;
-    try {
-      const cleanJson = rawResponse.replace(/```json|```/g, "").trim();
-      const safeJson = cleanJson
-        .replace(/,\s*}/g, "}")
-        .replace(/,\s*]/g, "]");
-      
-      quizData = JSON.parse(safeJson);
-    } catch (err) {
-      console.error("Quiz JSON parse error:", err.message);
+    if (!aiResult.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Failed to generate quiz format. Please try again.",
-          raw: rawResponse,
+        { success: false, error: "AI service temporarily unavailable. Please try again." },
+        { status: 503 }
+      );
+    }
+
+    console.log(`[Quiz Generate] Generated via ${aiResult.provider}`);
+
+    const validation = validateAIResponse(aiResult.content, QuizSchema);
+
+    if (!validation.success) {
+      console.error("[Quiz Generate] Validation failed:", validation.error);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: validation.error,
+          details: validation.details
         },
         { status: 500 }
       );
@@ -106,18 +148,15 @@ Generate a comprehensive quiz following the JSON format above.`;
 
     return NextResponse.json({
       success: true,
-      quiz: quizData,
+      quiz: validation.data,
+      provider: aiResult.provider,
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
     console.error("Quiz Generate AI Error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to generate quiz. Please try again.",
-        details: error.message
-      },
+      { success: false, error: "Failed to generate quiz. Please try again." },
       { status: 500 }
     );
   }

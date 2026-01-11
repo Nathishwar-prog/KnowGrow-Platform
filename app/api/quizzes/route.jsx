@@ -1,4 +1,4 @@
-import { quizzesTable } from "../../../config/schema";
+import { quizzesTable, userActivityTable } from "../../../config/schema";
 import { db } from "../../../config/db";
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
@@ -6,6 +6,21 @@ import { currentUser } from "@clerk/nextjs/server";
 
 const serialize = (obj) =>
   JSON.parse(JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? Number(v) : v)));
+
+async function logActivity(userEmail, actionType, title, entityId, entityType, metadata = null) {
+  try {
+    await db.insert(userActivityTable).values({
+      userEmail,
+      actionType,
+      title,
+      entityId,
+      entityType,
+      metadata
+    });
+  } catch (err) {
+    console.error("[Activity Log] Failed:", err.message);
+  }
+}
 
 export async function POST(req) {
   try {
@@ -17,18 +32,19 @@ export async function POST(req) {
       );
     }
 
-    const { quizId, title, description, topic, difficulty, questionCount, quizData } = await req.json();
+    const body = await req.json();
+    const { quizId, title, description, topic, difficulty, questionCount, quizData } = body;
 
-    // Validate required fields
     if (!quizId || !title || !topic || !difficulty || !questionCount || !quizData) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
+        { success: false, error: "Missing required fields: quizId, title, topic, difficulty, questionCount, and quizData are mandatory" },
         { status: 400 }
       );
     }
 
-    // Save quiz to database
-    const result = await db.insert(quizzesTable).values({
+    const userEmail = user.primaryEmailAddress?.emailAddress;
+
+    await db.insert(quizzesTable).values({
       quizId,
       title,
       description: description || "",
@@ -36,14 +52,21 @@ export async function POST(req) {
       difficulty,
       questionCount,
       quizData,
-      userEmail: user.primaryEmailAddress?.emailAddress,
-      createdAt: new Date().toISOString()
-    }).returning();
+      userEmail,
+      createdBy: user.id
+    });
+
+    await logActivity(
+      userEmail,
+      'quiz_create',
+      `Created quiz: ${title}`,
+      quizId,
+      'quiz',
+      { topic, difficulty, questionCount }
+    );
 
     return NextResponse.json({
-      success: true,
-      quiz: serialize(result[0]),
-      message: "Quiz saved successfully"
+      success: true
     });
 
   } catch (error) {
@@ -51,8 +74,7 @@ export async function POST(req) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to save quiz",
-        details: error.message
+        error: "Internal server error"
       },
       { status: 500 }
     );
@@ -69,39 +91,15 @@ export async function GET(req) {
       );
     }
 
-    const { searchParams } = new URL(req.url);
-    const quizId = searchParams?.get("quizId");
-
-    // Fetch specific quiz by ID
-    if (quizId) {
-      const result = await db
-        .select()
-        .from(quizzesTable)
-        .where(eq(quizzesTable.quizId, quizId));
-
-      if (result.length === 0) {
-        return NextResponse.json(
-          { success: false, error: "Quiz not found" },
-          { status: 404 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        quiz: serialize(result[0])
-      });
-    }
-
-    // Fetch all quizzes (from all users)
     const result = await db
       .select()
       .from(quizzesTable)
-      .orderBy(desc(quizzesTable.id));
+      .orderBy(desc(quizzesTable.createdAt));
 
     return NextResponse.json({
       success: true,
       quizzes: serialize(result),
-      count: result.length
+      currentUserId: user.id
     });
 
   } catch (error) {
@@ -109,63 +107,9 @@ export async function GET(req) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to fetch quizzes",
-        details: error.message
+        error: "Internal server error"
       },
       { status: 500 }
     );
   }
 }
-
-export async function DELETE(req) {
-  try {
-    const user = await currentUser();
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const { searchParams } = new URL(req.url);
-    const quizId = searchParams?.get("quizId");
-
-    if (!quizId) {
-      return NextResponse.json(
-        { success: false, error: "Quiz ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Delete quiz (only if user owns it)
-    const result = await db
-      .delete(quizzesTable)
-      .where(eq(quizzesTable.quizId, quizId))
-      .where(eq(quizzesTable.userEmail, user.primaryEmailAddress?.emailAddress))
-      .returning();
-
-    if (result.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Quiz not found or unauthorized" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "Quiz deleted successfully"
-    });
-
-  } catch (error) {
-    console.error("Error deleting quiz:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to delete quiz",
-        details: error.message
-      },
-      { status: 500 }
-    );
-  }
-}
-

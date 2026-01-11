@@ -1,11 +1,39 @@
 import { coursesTable } from "../../../config/schema";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ai } from "../../../@/lib/ai"
-// ✅ fixed import
+import { generateContent } from "../../../@/lib/generateContent";
+import { validateAIResponse, CourseLayoutSchema } from "../../../@/lib/ai-validator";
 import { NextResponse } from "next/server";
-import { db } from "../../../config/db"; // ✅ import db
+import { db } from "../../../config/db";
 import axios from "axios";
 import { eq } from "drizzle-orm";
+
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW_MS = 30000;
+const MAX_REQUESTS_PER_WINDOW = 1;
+
+function checkRateLimit(userId) {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+  
+  if (!userLimit) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  
+  if (now - userLimit.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  
+  if (userLimit.count >= MAX_REQUESTS_PER_WINDOW) {
+    const waitTime = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - userLimit.windowStart)) / 1000);
+    return { allowed: false, waitTime };
+  }
+  
+  userLimit.count++;
+  return { allowed: true };
+}
+
 const PROMPT = `You are an AI tutor designing an engaging technical course for a young audience (18-35). Generate a COMPLETE JSON-ONLY response for a personalized course based on the user's input.
 
 STRICT RULES:
@@ -48,62 +76,91 @@ Banner image prompt guidance:
 
 User Input:`;
 
-
 export async function POST(request) {
   try {
-    const { courseId, ...formData } = await request.json();
     const user = await currentUser();
+    
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+    
+    const userId = user.id;
+    const rateCheck = checkRateLimit(userId);
+    
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Please wait ${rateCheck.waitTime} seconds before generating another course.` 
+        },
+        { status: 429 }
+      );
+    }
+    
+    const { courseId, ...formData } = await request.json();
+    
+    if (!courseId || !formData.name) {
+      return NextResponse.json(
+        { success: false, error: "Course ID and name are required" },
+        { status: 400 }
+      );
+    }
+    
     const { has } = await auth();
-    const hasPremiumAccess = has({ plan: 'starter' })
-
-
-
-    const tools = [{ googleSearch: {} }];
-    const config = {
-      responseMimeType: "text/plain",
-      tools,
-    };
-    const model = "gemini-2.0-flash";
-    const contents = [
-      {
-        role: "user",
-        parts: [{ text: PROMPT + JSON.stringify(formData) }],
-      },
-    ];
-
-    // If user alredy created any courses
+    const hasPremiumAccess = has({ plan: 'starter' });
 
     if (!hasPremiumAccess) {
-      const result = await db.select().from(coursesTable)
-        .where(eq(coursesTable.userEmail, user?.primaryEmailAddress.emailAddress));
-
-
-    }
-
-    async function withRetry(fn, retries = 3, delay = 1000) {
-      for (let i = 0; i < retries; i++) {
-        try {
-          return await fn();
-        } catch (err) {
-          if (i === retries - 1) throw err;
-          await new Promise((res) => setTimeout(res, delay * (i + 1)));
-        }
+      const existingCourses = await db.select().from(coursesTable)
+        .where(eq(coursesTable.userEmail, user?.primaryEmailAddress?.emailAddress));
+      
+      if (existingCourses.length >= 3) {
+        return NextResponse.json(
+          { success: false, error: "Free tier limit reached. Upgrade to create more courses." },
+          { status: 403 }
+        );
       }
     }
 
-    const response = await withRetry(() =>
-      ai.models.generateContent({ model, config, contents })
-    );
-    console.log(response.candidates[0].content.parts[0].text);
-    const RawResp = response?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const RawJson = RawResp.replace(/```json|```/g, "").trim();
+    const prompt = PROMPT + JSON.stringify(formData);
+    
+    const aiResult = await generateContent(prompt, {
+      geminiModel: 'gemini-2.0-flash',
+      tools: [{ googleSearch: {} }],
+      maxGeminiRetries: 1,
+      geminiBackoffMs: 2000,
+    });
 
-    const JSONResponse = JSON.parse(RawJson);
+    if (!aiResult.success) {
+      return NextResponse.json(
+        { success: false, error: "AI service temporarily unavailable. Please try again." },
+        { status: 503 }
+      );
+    }
+
+    console.log(`[Course Layout] Generated via ${aiResult.provider}`);
+
+    const validation = validateAIResponse(aiResult.content, CourseLayoutSchema);
+    
+    if (!validation.success) {
+      console.error("[Course Layout] Validation failed:", validation.error);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: validation.error,
+          details: validation.details 
+        },
+        { status: 500 }
+      );
+    }
+
+    const JSONResponse = validation.data;
     const ImagePrompt = JSONResponse?.course?.bannerImagePrompt || "";
-    //generate a course banner image
     const bannerImageUrl = await GenerateImage(ImagePrompt);
-    // ✅ save to DB
-    const result = await db.insert(coursesTable).values({
+
+    await db.insert(coursesTable).values({
       ...formData,
       courseJson: JSONResponse,
       userEmail: user?.primaryEmailAddress?.emailAddress,
@@ -111,20 +168,18 @@ export async function POST(request) {
       bannerImageUrl: bannerImageUrl
     });
 
-    return NextResponse.json({ courseId: courseId });
+    return NextResponse.json({ success: true, courseId: courseId });
   } catch (error) {
     console.error("Route Error:", error);
     return NextResponse.json(
-      { error: true, message: error.message || "Internal Server Error" },
-      { status: error.status || 500 }
+      { success: false, error: "An unexpected error occurred. Please try again." },
+      { status: 500 }
     );
   }
 }
 
-
 const GenerateImage = async (ImagePrompt) => {
   try {
-    // Check if API key exists
     if (!process?.env?.AI_GURU_LAB_API_KEY) {
       console.warn("Missing AI_GURU_LAB_API_KEY, using placeholder image.");
       return `https://placehold.co/1024x576/png?text=${encodeURIComponent("Course Banner")}`;
@@ -147,12 +202,10 @@ const GenerateImage = async (ImagePrompt) => {
         },
         timeout: 20000
       }
-    )
-    console.log(result.data.image)
+    );
     return result.data.image;
   } catch (e) {
-    console.error('Image generation failed:', e?.response?.data || e?.message || e)
-    // Return placeholder on failure instead of empty string
+    console.error('Image generation failed:', e?.response?.data || e?.message || e);
     return `https://placehold.co/1024x576/png?text=${encodeURIComponent("Course Banner")}`;
   }
-}
+};
