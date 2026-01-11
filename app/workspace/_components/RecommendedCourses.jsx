@@ -37,10 +37,13 @@ const RecommendedCourses = ({ userInterests = [], enrolledCourses = [] }) => {
 
       // Get all courses (in a real app, this would be a recommendation API)
       const response = await axios.get("/api/courses?courseId=0&search=popular");
-      const allCourses = response.data;
+      // const allCourses = response.data;
 
       // Filter out already enrolled courses
       const enrolledCourseIds = enrolledCourses.map(ec => ec?.courses?.cid || ec?.cid);
+
+      const allCourses = response.data?.data ?? []; // ✅ always array
+
       const availableCourses = allCourses.filter(course =>
         !enrolledCourseIds.includes(course.cid)
       );

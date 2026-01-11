@@ -241,7 +241,7 @@ const TypewriterHeader = ({ content, onComplete, speed = 20 }) => {
                               <SelectTrigger className="h-16 border-2 rounded-[20px] px-6 text-lg font-bold bg-background/50">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="rounded-2xl border-2">
+                                <SelectContent className="rounded-2xl border-2 z-[110]">
                                 <SelectItem value="easy">🌱 Beginner Foundation</SelectItem>
                                 <SelectItem value="medium">⚡ Intermediate Professional</SelectItem>
                                 <SelectItem value="hard">🔥 Expert Specialist</SelectItem>
@@ -261,7 +261,7 @@ const TypewriterHeader = ({ content, onComplete, speed = 20 }) => {
                               <SelectTrigger className="h-16 border-2 rounded-[20px] px-6 text-lg font-bold bg-background/50">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="rounded-2xl border-2">
+                                <SelectContent className="rounded-2xl border-2 z-[110]">
                                 <SelectItem value="3">3 Modules - Rapid Check</SelectItem>
                                 <SelectItem value="5">5 Modules - Balanced Analysis</SelectItem>
                                 <SelectItem value="10">10 Modules - Comprehensive Audit</SelectItem>
