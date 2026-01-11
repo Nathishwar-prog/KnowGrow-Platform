@@ -1,12 +1,9 @@
 import { coursesTable } from "../../../config/schema";
 import { db } from "../../../config/db";
-import { NextResponse } from "next/server";
 import { desc, eq, sql, and, getTableColumns } from "drizzle-orm";
 import { currentUser } from "@clerk/nextjs/server";
-
-const serialize = (obj) => {
-  return JSON.parse(JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? Number(v) : v)));
-};
+import { apiResponse, successResponse, errorResponse, serialize, safeParseJson } from "../../../lib/api-utils";
+import { CourseSchema } from "../../../lib/schemas";
 
 export async function GET(req) {
   try {
@@ -43,7 +40,12 @@ export async function GET(req) {
       }
 
       const result = await query;
-      return NextResponse.json(serialize(result));
+      const parsedResult = result.map(row => ({
+        ...row,
+        courseJson: safeParseJson(row.courseJson)
+      }));
+      
+      return successResponse(serialize(parsedResult));
     }
 
     if (courseId) {
@@ -56,7 +58,28 @@ export async function GET(req) {
         .where(eq(coursesTable.cid, courseId))
         .limit(1);
 
-      return NextResponse.json(serialize(result[0] ?? null));
+      if (result.length === 0) {
+        return errorResponse("Course not found", 404);
+      }
+
+      const row = result[0];
+      const courseData = {
+        ...row,
+        courseJson: safeParseJson(row.courseJson),
+        courseContent: safeParseJson(row.courseContent),
+      };
+
+      // Validate
+      const validation = CourseSchema.safeParse(courseData);
+      if (!validation.success) {
+        console.warn("[Validation Warning] Course data schema mismatch:", validation.error.format());
+      }
+
+      return successResponse(serialize(courseData));
+    }
+
+    if (!user?.primaryEmailAddress?.emailAddress) {
+      return errorResponse("User not authenticated", 401);
     }
 
     const result = await db
@@ -65,16 +88,18 @@ export async function GET(req) {
         hasContent: sql`CASE WHEN ${coursesTable.courseContent}::jsonb != '{}'::jsonb THEN true ELSE false END`
       })
       .from(coursesTable)
-      .where(eq(coursesTable.userEmail, user.primaryEmailAddress?.emailAddress))
+      .where(eq(coursesTable.userEmail, user.primaryEmailAddress.emailAddress))
       .orderBy(desc(coursesTable.id))
       .limit(100);
 
-    return NextResponse.json(serialize(result));
+    const parsedResult = result.map(row => ({
+      ...row,
+      courseJson: safeParseJson(row.courseJson)
+    }));
+
+    return successResponse(serialize(parsedResult));
   } catch (error) {
-    console.error("[API /courses] Error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch courses." },
-      { status: 500 }
-    );
+    console.error("[API /courses GET] Error:", error);
+    return errorResponse("Failed to fetch courses.", 500);
   }
 }

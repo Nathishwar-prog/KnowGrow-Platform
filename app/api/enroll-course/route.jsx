@@ -2,12 +2,9 @@ import { coursesTable, enrollCourseTable, userActivityTable } from "../../../con
 import { db } from "../../../config/db";
 import { currentUser } from "@clerk/nextjs/server";
 import { and, desc, eq, getTableColumns } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
-
-const serialize = (obj) => {
-  return JSON.parse(JSON.stringify(obj, (_, v) => (typeof v === "bigint" ? Number(v) : v)));
-};
+import { apiResponse, successResponse, errorResponse, serialize, safeParseJson } from "../../../lib/api-utils";
+import { CourseSchema, EnrollmentSchema } from "../../../lib/schemas";
 
 const EnrollSchema = z.object({
   courseId: z.string().min(1),
@@ -34,14 +31,14 @@ export async function POST(req) {
     const validation = EnrollSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
+      return errorResponse("Invalid course ID", 400);
     }
 
     const { courseId } = validation.data;
     const user = await currentUser();
 
     if (!user?.primaryEmailAddress?.emailAddress) {
-      return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
+      return errorResponse("User not authenticated", 401);
     }
 
     const userEmail = user.primaryEmailAddress.emailAddress;
@@ -55,7 +52,7 @@ export async function POST(req) {
       .limit(1);
 
     if (enrollCourses?.length > 0) {
-      return NextResponse.json({ resp: "Already Enrolled" });
+      return successResponse({ resp: "Already Enrolled" });
     }
 
     const courseInfo = await db.select({ name: coursesTable.name })
@@ -70,7 +67,8 @@ export async function POST(req) {
         cid: courseId,
         userEmail: userEmail,
         enrolledAt: new Date(),
-        lastActivityAt: new Date()
+        lastActivityAt: new Date(),
+        completedChapters: []
       })
       .returning({ id: enrollCourseTable.id, cid: enrollCourseTable.cid });
 
@@ -82,13 +80,10 @@ export async function POST(req) {
       'course'
     );
 
-    return NextResponse.json(result);
+    return successResponse(result);
   } catch (error) {
     console.error("[API /enroll-course POST] Error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to enroll in course." },
-      { status: 500 }
-    );
+    return errorResponse("Failed to enroll in course.", 500);
   }
 }
 
@@ -99,55 +94,81 @@ export async function GET(req) {
     const courseId = searchParams?.get("courseId");
 
     if (!user?.primaryEmailAddress?.emailAddress) {
-      return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
+      return errorResponse("User not authenticated", 401);
     }
 
-    const { courseContent, ...courseColumns } = getTableColumns(coursesTable);
+    const userEmail = user.primaryEmailAddress.emailAddress;
 
     if (courseId) {
+      // Fetch course and enrollment together
       const result = await db
-        .select({
-          courses: courseColumns,
-          enrollCourse: enrollCourseTable,
-        })
+        .select()
         .from(coursesTable)
-        .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
-        .where(and(
-          eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress),
-          eq(enrollCourseTable.cid, courseId)
+        .leftJoin(enrollCourseTable, and(
+          eq(coursesTable.cid, enrollCourseTable.cid),
+          eq(enrollCourseTable.userEmail, userEmail)
         ))
+        .where(eq(coursesTable.cid, courseId))
         .limit(1);
 
       if (result.length === 0) {
-        return NextResponse.json(null);
+        return errorResponse("Course not found", 404);
       }
 
-      const fullCourse = await db.select().from(coursesTable).where(eq(coursesTable.cid, courseId)).limit(1);
+      const row = result[0];
+      
+      // Defensive parsing and validation
+      const courseData = {
+        ...row.courses,
+        courseJson: safeParseJson(row.courses.courseJson),
+        courseContent: safeParseJson(row.courses.courseContent),
+      };
 
-      return NextResponse.json(serialize({
-        courses: fullCourse[0] || result[0].courses,
-        enrollCourse: result[0].enrollCourse
+      const enrollmentData = row.enrollCourse ? {
+        ...row.enrollCourse,
+        completedChapters: safeParseJson(row.enrollCourse.completedChapters, []),
+      } : null;
+
+      // Validate against schemas
+      const validatedCourse = CourseSchema.safeParse(courseData);
+      if (!validatedCourse.success) {
+        console.error("[Validation Error] Course data invalid:", validatedCourse.error.format());
+      }
+
+      return successResponse(serialize({
+        courses: courseData,
+        enrollCourse: enrollmentData
       }));
     }
 
-    const result = await db
+    // List all enrollments
+    const enrollments = await db
       .select({
-        courses: courseColumns,
-        enrollCourse: enrollCourseTable,
+        courses: getTableColumns(coursesTable),
+        enrollCourse: getTableColumns(enrollCourseTable),
       })
       .from(coursesTable)
       .innerJoin(enrollCourseTable, eq(coursesTable.cid, enrollCourseTable.cid))
-      .where(eq(enrollCourseTable.userEmail, user.primaryEmailAddress.emailAddress))
+      .where(eq(enrollCourseTable.userEmail, userEmail))
       .orderBy(desc(enrollCourseTable.id))
       .limit(50);
 
-    return NextResponse.json(serialize(result));
+    const serializedEnrollments = enrollments.map(row => ({
+      courses: {
+        ...row.courses,
+        courseJson: safeParseJson(row.courses.courseJson),
+        courseContent: safeParseJson(row.courses.courseContent),
+      },
+      enrollCourse: {
+        ...row.enrollCourse,
+        completedChapters: safeParseJson(row.enrollCourse.completedChapters, []),
+      }
+    }));
+
+    return successResponse(serialize(serializedEnrollments));
   } catch (error) {
     console.error("[API /enroll-course GET] Error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch enrolled courses." },
-      { status: 500 }
-    );
+    return errorResponse("Failed to fetch enrolled courses.", 500);
   }
 }
 
@@ -157,7 +178,7 @@ export async function PUT(req) {
     const user = await currentUser();
 
     if (!user?.primaryEmailAddress?.emailAddress) {
-      return NextResponse.json({ error: "User not authenticated" }, { status: 401 });
+      return errorResponse("User not authenticated", 401);
     }
 
     const userEmail = user.primaryEmailAddress.emailAddress;
@@ -172,9 +193,12 @@ export async function PUT(req) {
       ))
       .limit(1);
 
-    const previousCount = Array.isArray(existingEnroll[0]?.completedChapters) 
-      ? existingEnroll[0].completedChapters.length 
-      : 0;
+    if (existingEnroll.length === 0) {
+      return errorResponse("Enrollment not found", 404);
+    }
+
+    const currentChapters = safeParseJson(existingEnroll[0].completedChapters, []);
+    const previousCount = Array.isArray(currentChapters) ? currentChapters.length : 0;
     const newCount = Array.isArray(completedChapter) ? completedChapter.length : 0;
     const isNewCompletion = newCount > previousCount;
 
@@ -218,12 +242,9 @@ export async function PUT(req) {
       }
     }
 
-    return NextResponse.json(serialize(result));
+    return successResponse(serialize(result));
   } catch (error) {
     console.error("[API /enroll-course PUT] Error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to update progress." },
-      { status: 500 }
-    );
+    return errorResponse("Failed to update progress.", 500);
   }
 }

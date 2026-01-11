@@ -34,7 +34,20 @@ async function request(config) {
       ...rest,
     });
 
-    return { success: true, data: response.data, status: response.status };
+    const responseData = response.data;
+
+    // Standard Response Unwrapper
+    if (responseData && typeof responseData === 'object' && 'success' in responseData) {
+      return {
+        success: responseData.success,
+        data: responseData.data,
+        message: responseData.message,
+        error: responseData.error,
+        status: response.status
+      };
+    }
+
+    return { success: true, data: responseData, status: response.status };
   } catch (error) {
     if (error.code === "ECONNABORTED") {
       return {
@@ -44,10 +57,13 @@ async function request(config) {
       };
     }
 
-    const serverError = error.response?.data?.error || error.response?.data?.message;
+    // Try to extract error from standard response shape
+    const responseData = error.response?.data;
+    const serverError = responseData?.error || responseData?.message || error.message;
+
     return {
       success: false,
-      error: serverError || error.message || "An unexpected error occurred.",
+      error: serverError || "An unexpected error occurred.",
       status: error.response?.status,
       isTimeout: false,
     };
